@@ -14,6 +14,7 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
+        populate_by_name=True,
     )
 
     app_name: str = "Parset Monitor"
@@ -42,6 +43,9 @@ class Settings(BaseSettings):
     telegram_chat_id: str | None = None
     telegram_bot_control_enabled: bool = Field(default=False, alias="TELEGRAM_BOT_CONTROL_ENABLED")
     telegram_bot_polling_timeout_seconds: int = Field(default=30, alias="TELEGRAM_BOT_POLLING_TIMEOUT_SECONDS")
+    telegram_message_chunk_size: int = Field(default=3500, alias="TELEGRAM_MESSAGE_CHUNK_SIZE")
+    telegram_retry_attempts: int = Field(default=4, alias="TELEGRAM_RETRY_ATTEMPTS")
+    telegram_retry_base_seconds: float = Field(default=1.5, alias="TELEGRAM_RETRY_BASE_SECONDS")
 
     gemini_api_key: str | None = None
     gemini_model: str = "gemini-2.5-flash"
