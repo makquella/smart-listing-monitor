@@ -1,9 +1,9 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, String, Text
+from sqlalchemy import ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.core.db import Base
+from app.core.db import Base, UTCDateTime
 
 
 class NotificationDelivery(Base):
@@ -19,8 +19,8 @@ class NotificationDelivery(Base):
     message_preview: Mapped[str | None] = mapped_column(Text)
     telegram_message_id: Mapped[str | None] = mapped_column(String(120))
     error_text: Mapped[str | None] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
+    sent_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
 
     monitor_profile = relationship("MonitorProfile", back_populates="notification_deliveries")
     telegram_chat = relationship("TelegramChat", back_populates="notification_deliveries")

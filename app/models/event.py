@@ -1,9 +1,9 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, JSON, String, Text
+from sqlalchemy import Boolean, ForeignKey, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.core.db import Base
+from app.core.db import Base, UTCDateTime
 
 
 class DetectedEvent(Base):
@@ -22,4 +22,4 @@ class DetectedEvent(Base):
     summary_text: Mapped[str] = mapped_column(Text, nullable=False)
     is_suppressed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     suppressed_reason: Mapped[str | None] = mapped_column(String(120))
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)

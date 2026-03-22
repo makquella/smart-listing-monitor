@@ -1,9 +1,9 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, JSON, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, Float, ForeignKey, Integer, JSON, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.core.db import Base
+from app.core.db import Base, UTCDateTime
 
 
 class Item(Base):
@@ -22,12 +22,12 @@ class Item(Base):
     rating: Mapped[str | None] = mapped_column(String(32))
     attributes_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
     comparison_hash: Mapped[str] = mapped_column(String(64), nullable=False)
-    first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    first_seen_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
+    last_seen_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     missing_run_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
 
     source = relationship("Source", back_populates="items")
     snapshots = relationship("ItemSnapshot", back_populates="item")
@@ -47,6 +47,6 @@ class ItemSnapshot(Base):
     rating: Mapped[str | None] = mapped_column(String(32))
     attributes_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
     comparison_hash: Mapped[str] = mapped_column(String(64), nullable=False)
-    observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    observed_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
 
     item = relationship("Item", back_populates="snapshots")

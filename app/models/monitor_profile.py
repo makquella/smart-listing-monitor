@@ -1,9 +1,9 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, JSON, String
+from sqlalchemy import Boolean, Float, ForeignKey, JSON, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.core.db import Base
+from app.core.db import Base, UTCDateTime
 
 
 class MonitorProfile(Base):
@@ -23,8 +23,8 @@ class MonitorProfile(Base):
     instant_alerts_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     digest_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     priority_mode: Mapped[str] = mapped_column(String(32), default="high_medium", nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
 
     telegram_user = relationship("TelegramUser", back_populates="monitor_profiles")
     telegram_chat = relationship("TelegramChat", back_populates="monitor_profiles")

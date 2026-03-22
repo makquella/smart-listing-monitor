@@ -1,9 +1,9 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, String, Text
+from sqlalchemy import ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.core.db import Base
+from app.core.db import Base, UTCDateTime
 
 
 class NotificationLog(Base):
@@ -19,5 +19,5 @@ class NotificationLog(Base):
     status: Mapped[str] = mapped_column(String(32), nullable=False)
     provider_message_id: Mapped[str | None] = mapped_column(String(120))
     payload_preview: Mapped[str | None] = mapped_column(Text)
-    sent_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    sent_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
     error_message: Mapped[str | None] = mapped_column(Text)

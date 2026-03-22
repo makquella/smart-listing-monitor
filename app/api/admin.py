@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.db import get_db_session
-from app.core.time import utcnow
+from app.core.time import format_utc, format_utc_short, utcnow
 from app.models.event import DetectedEvent
 from app.models.telegram_chat import TelegramChat
 from app.models.telegram_user import TelegramUser
@@ -104,8 +104,8 @@ def _base_context(request: Request) -> dict:
             "gemini": bool(settings.gemini_api_key),
         },
         "fmt_price": lambda price: "n/a" if price is None else f"GBP {price:.2f}",
-        "fmt_dt": lambda value: value.strftime("%b %d, %Y %H:%M UTC") if value else "n/a",
-        "fmt_dt_short": lambda value: value.strftime("%b %d, %H:%M") if value else "n/a",
+        "fmt_dt": format_utc,
+        "fmt_dt_short": format_utc_short,
         "fmt_duration": lambda ms: f"{((ms or 0) / 1000):.1f}s",
         "fmt_ratio": lambda value: "n/a" if value is None else f"{value:.2f}",
         "search_query": _search_query(request),
