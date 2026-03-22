@@ -1,6 +1,11 @@
 {% extends "base.html" %}
 {% set title = "Run #" ~ run.id %}
 {% set nav_key = "runs" %}
+{% block head_extra %}
+{% if run.status in ["queued", "running"] %}
+<meta http-equiv="refresh" content="3">
+{% endif %}
+{% endblock %}
 {% block content %}
 <section class="page-head detail-head">
     <div>
@@ -30,6 +35,25 @@
         {% endif %}
     </div>
 </section>
+
+{% if run.status in ["queued", "running"] %}
+<section class="surface-card info-banner">
+    <div class="section-head compact">
+        <div>
+            <p class="section-kicker">Execution State</p>
+            <h3>{{ "Run queued in the background" if run.status == "queued" else "Run in progress" }}</h3>
+        </div>
+        <span class="badge badge-{{ run.status }}">{{ run.status }}</span>
+    </div>
+    <p class="summary-text">
+        {% if run.status == "queued" %}
+        The source was accepted for background execution. This page refreshes automatically until processing begins.
+        {% else %}
+        The source is being parsed in the background. This page refreshes automatically every few seconds until the run completes.
+        {% endif %}
+    </p>
+</section>
+{% endif %}
 
 <section class="metrics-grid">
     {% if source %}

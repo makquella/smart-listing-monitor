@@ -119,6 +119,10 @@ def _get_runner(request: Request) -> MonitorRunner:
     return request.app.state.runner
 
 
+def _get_run_dispatcher(request: Request):
+    return request.app.state.run_dispatcher
+
+
 @router.get("/", response_class=HTMLResponse)
 def overview(request: Request, session: Session = Depends(get_db_session)) -> HTMLResponse:
     source_repo = SourceRepository(session)
@@ -663,9 +667,9 @@ def deliveries(request: Request, session: Session = Depends(get_db_session)) -> 
 
 
 @router.post("/sources/{source_id}/run")
-def run_source(source_id: int, request: Request, runner: MonitorRunner = Depends(_get_runner)) -> RedirectResponse:
+def run_source(source_id: int, request: Request, dispatcher = Depends(_get_run_dispatcher)) -> RedirectResponse:
     try:
-        run = runner.run_source(source_id, trigger_type="manual")
+        run = dispatcher.enqueue_source(source_id, trigger_type="manual")
     except RunLockedError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     return RedirectResponse(url=f"/admin/runs/{run.id}", status_code=303)

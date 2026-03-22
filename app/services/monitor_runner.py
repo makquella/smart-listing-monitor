@@ -64,6 +64,26 @@ class MonitorRunner:
         self.monitor_evaluator = MonitorEvaluator()
         self.monitor_notifier = monitor_notifier
 
+    def queue_run(self, source_id: int, trigger_type: str = "manual") -> MonitoringRun:
+        with self.session_factory() as session:
+            source_repo = SourceRepository(session)
+            run_repo = RunRepository(session)
+            source = source_repo.get(source_id)
+            if source is None:
+                raise ValueError(f"Source {source_id} not found")
+            active_run = run_repo.get_in_progress_by_source(source_id)
+            if active_run is not None:
+                raise RunLockedError(f"Source {source_id} already has an in-progress run #{active_run.id}")
+            queued_at = utcnow()
+            run = run_repo.create_run(
+                source_id=source.id,
+                trigger_type=trigger_type,
+                started_at=queued_at,
+                status="queued",
+            )
+            session.refresh(run)
+            return run
+
     def run_source(self, source_id: int, trigger_type: str = "manual") -> MonitoringRun:
         with self.lock_manager.held(source_id) as acquired:
             if not acquired:
@@ -77,40 +97,81 @@ class MonitorRunner:
                     raise ValueError(f"Source {source_id} not found")
 
                 previous_health = source.health_status
-                started_at = utcnow()
-                run = run_repo.create_run(source_id=source.id, trigger_type=trigger_type, started_at=started_at)
-
-                source.last_run_started_at = started_at
-                source.updated_at = started_at
-                session.add(source)
-                session.commit()
+                run = run_repo.create_run(
+                    source_id=source.id,
+                    trigger_type=trigger_type,
+                    started_at=utcnow(),
+                    status="running",
+                )
+                started_at = self._mark_run_started(session=session, source=source, run=run)
 
                 try:
                     return self._execute_run(session=session, source=source, run=run)
                 except Exception as exc:
-                    logger.exception("Monitoring run failed for source %s", source.slug)
-                    session.rollback()
-                    finished_at = utcnow()
-                    source.health_status = "failing"
-                    source.last_run_finished_at = finished_at
-                    source.last_failed_run_at = finished_at
-                    source.consecutive_failures += 1
-                    source.last_error_message = str(exc)
-                    source.updated_at = finished_at
+                    return self._handle_failed_run(
+                        session=session,
+                        source=source,
+                        run=run,
+                        previous_health=previous_health,
+                        started_at=started_at,
+                        exc=exc,
+                    )
 
-                    run.status = "failed"
-                    run.finished_at = finished_at
-                    run.duration_ms = int((finished_at - started_at).total_seconds() * 1000)
-                    run.health_evaluation = "failing"
-                    run.error_message = str(exc)
+    def run_queued_run(self, run_id: int) -> MonitoringRun:
+        with self.session_factory() as session:
+            run_repo = RunRepository(session)
+            source_repo = SourceRepository(session)
+            run = run_repo.get(run_id)
+            if run is None:
+                raise ValueError(f"Run {run_id} not found")
+            source = source_repo.get(run.source_id)
+            if source is None:
+                raise ValueError(f"Source {run.source_id} not found")
+            if run.status not in {"queued", "running"}:
+                return run
 
-                    session.add_all([source, run])
-                    session.commit()
-                    session.refresh(run)
+        with self.lock_manager.held(source.id) as acquired:
+            if not acquired:
+                with self.session_factory() as session:
+                    run = RunRepository(session).get(run_id)
+                    source = SourceRepository(session).get(run.source_id) if run is not None else None
+                    if run is None or source is None:
+                        raise RunLockedError(f"Run {run_id} is no longer available")
+                    if run.status == "queued":
+                        previous_health = source.health_status
+                        return self._handle_failed_run(
+                            session=session,
+                            source=source,
+                            run=run,
+                            previous_health=previous_health,
+                            started_at=run.started_at,
+                            exc=RunLockedError(f"Source {source.id} is already running"),
+                        )
+                    raise RunLockedError(f"Source {source.id} is already running")
 
-                    if previous_health != "failing":
-                        self._log_failure_transition(session, source, run, str(exc))
-                    return run
+            with self.session_factory() as session:
+                run_repo = RunRepository(session)
+                source_repo = SourceRepository(session)
+                run = run_repo.get(run_id)
+                if run is None:
+                    raise ValueError(f"Run {run_id} not found")
+                source = source_repo.get(run.source_id)
+                if source is None:
+                    raise ValueError(f"Source {run.source_id} not found")
+
+                previous_health = source.health_status
+                started_at = self._mark_run_started(session=session, source=source, run=run)
+                try:
+                    return self._execute_run(session=session, source=source, run=run)
+                except Exception as exc:
+                    return self._handle_failed_run(
+                        session=session,
+                        source=source,
+                        run=run,
+                        previous_health=previous_health,
+                        started_at=started_at,
+                        exc=exc,
+                    )
 
     def _execute_run(self, *, session: Session, source: Source, run: MonitoringRun) -> MonitoringRun:
         run_repo = RunRepository(session)
@@ -295,6 +356,51 @@ class MonitorRunner:
         session.add(run)
         session.commit()
         session.refresh(run)
+        return run
+
+    def _mark_run_started(self, *, session: Session, source: Source, run: MonitoringRun) -> datetime:
+        started_at = utcnow()
+        run.status = "running"
+        run.started_at = started_at
+        source.last_run_started_at = started_at
+        source.updated_at = started_at
+        session.add_all([source, run])
+        session.commit()
+        session.refresh(run)
+        return started_at
+
+    def _handle_failed_run(
+        self,
+        *,
+        session: Session,
+        source: Source,
+        run: MonitoringRun,
+        previous_health: str,
+        started_at: datetime,
+        exc: Exception,
+    ) -> MonitoringRun:
+        logger.exception("Monitoring run failed for source %s", source.slug)
+        session.rollback()
+        finished_at = utcnow()
+        source.health_status = "failing"
+        source.last_run_finished_at = finished_at
+        source.last_failed_run_at = finished_at
+        source.consecutive_failures += 1
+        source.last_error_message = str(exc)
+        source.updated_at = finished_at
+
+        run.status = "failed"
+        run.finished_at = finished_at
+        run.duration_ms = int((finished_at - started_at).total_seconds() * 1000)
+        run.health_evaluation = "failing"
+        run.error_message = str(exc)
+
+        session.add_all([source, run])
+        session.commit()
+        session.refresh(run)
+
+        if previous_health != "failing":
+            self._log_failure_transition(session, source, run, str(exc))
         return run
 
     def _log_failure_transition(self, session: Session, source: Source, run: MonitoringRun, error_message: str) -> None:

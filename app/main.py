@@ -13,6 +13,7 @@ from app.core.db import init_db
 from app.core.logging import configure_logging
 from app.core.scheduler import SchedulerService
 from app.repositories.sources import SourceRepository
+from app.services.run_dispatcher import RunDispatcher
 from app.services.monitor_runner import MonitorRunner, build_runner_dependencies
 
 
@@ -34,16 +35,19 @@ async def lifespan(app: FastAPI):
         SourceRepository(session).ensure_seed_source(settings)
 
     runner = build_runner()
+    dispatcher = RunDispatcher(runner=runner)
     scheduler = SchedulerService(session_factory=runner.session_factory, runner=runner)
     scheduler.start()
     bot_controller = TelegramBotController(settings=settings, session_factory=runner.session_factory, runner=runner)
     bot_controller.start()
 
     app.state.runner = runner
+    app.state.run_dispatcher = dispatcher
     app.state.scheduler = scheduler
     app.state.bot_controller = bot_controller
     yield
     scheduler.shutdown()
+    dispatcher.shutdown()
     await bot_controller.shutdown()
 
 

@@ -1,11 +1,14 @@
 from dataclasses import dataclass
 
+import pytest
+
 from app.core.config import Settings
 from app.core.time import utcnow
+from app.repositories.runs import RunRepository
 from app.models.source import Source
 from app.repositories.sources import SourceRepository
 from app.services.gemini import GeminiService
-from app.services.monitor_runner import MonitorRunner
+from app.services.monitor_runner import MonitorRunner, RunLockedError
 from app.services.run_lock import SourceRunLockManager
 from app.services.telegram import TelegramNotifier
 from app.services.types import ParseResult, ParsedItem
@@ -133,3 +136,36 @@ def test_runner_reuses_cached_attributes_without_reenriching_existing_items(sess
     assert first.status == "succeeded"
     assert second.status == "succeeded"
     assert adapter.enrich_calls == 1
+
+
+def test_runner_can_queue_and_execute_run_lifecycle(session_factory) -> None:
+    source_id = make_source(session_factory)
+    adapter = FakeAdapter(responses=[ParseResult(items=[item(1)], pages_fetched=1)])
+    runner = build_runner(session_factory, adapter)
+
+    queued = runner.queue_run(source_id, trigger_type="manual")
+    assert queued.status == "queued"
+
+    with session_factory() as session:
+        persisted = RunRepository(session).get(queued.id)
+        assert persisted is not None
+        assert persisted.status == "queued"
+
+    finished = runner.run_queued_run(queued.id)
+
+    assert finished.id == queued.id
+    assert finished.status == "succeeded"
+    assert finished.items_parsed == 1
+    assert finished.events_count == 1
+
+
+def test_runner_prevents_duplicate_queued_runs_for_same_source(session_factory) -> None:
+    source_id = make_source(session_factory)
+    adapter = FakeAdapter(responses=[ParseResult(items=[item(1)], pages_fetched=1)])
+    runner = build_runner(session_factory, adapter)
+
+    queued = runner.queue_run(source_id, trigger_type="manual")
+    assert queued.status == "queued"
+
+    with pytest.raises(RunLockedError):
+        runner.queue_run(source_id, trigger_type="manual")

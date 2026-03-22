@@ -11,11 +11,18 @@ class RunRepository:
     def __init__(self, session: Session):
         self.session = session
 
-    def create_run(self, *, source_id: int, trigger_type: str, started_at: datetime) -> MonitoringRun:
+    def create_run(
+        self,
+        *,
+        source_id: int,
+        trigger_type: str,
+        started_at: datetime,
+        status: str = "running",
+    ) -> MonitoringRun:
         run = MonitoringRun(
             source_id=source_id,
             trigger_type=trigger_type,
-            status="running",
+            status=status,
             started_at=started_at,
             created_at=started_at,
         )
@@ -32,6 +39,18 @@ class RunRepository:
 
     def get(self, run_id: int) -> MonitoringRun | None:
         return self.session.get(MonitoringRun, run_id)
+
+    def get_in_progress_by_source(self, source_id: int) -> MonitoringRun | None:
+        statement = (
+            select(MonitoringRun)
+            .where(
+                MonitoringRun.source_id == source_id,
+                MonitoringRun.status.in_(("queued", "running")),
+            )
+            .order_by(desc(MonitoringRun.created_at))
+            .limit(1)
+        )
+        return self.session.scalar(statement)
 
     def list_recent(self, limit: int = 20) -> Sequence[MonitoringRun]:
         statement = select(MonitoringRun).order_by(desc(MonitoringRun.started_at)).limit(limit)
