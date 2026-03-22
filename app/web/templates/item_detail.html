@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+{% set title = item.title %}
+{% set nav_key = "items" %}
+{% set search_placeholder = "Search snapshots or findings for this item..." %}
+{% block content %}
+<section class="page-head detail-head">
+    <div>
+        <div class="breadcrumbs">
+            <span>Workspace</span>
+            <span class="material-symbols-outlined">chevron_right</span>
+            <span>Items</span>
+            <span class="material-symbols-outlined">chevron_right</span>
+            <span>{{ item.title }}</span>
+        </div>
+        <div class="headline-badges">
+            <a class="badge badge-link badge-{{ 'healthy' if item.availability_status == 'in_stock' else 'neutral' }}" href="/admin/items?availability={{ item.availability_status }}">{{ item.availability_status|replace('_', ' ') }}</a>
+            <a class="badge badge-link badge-{{ 'healthy' if item.is_active else 'neutral' }}" href="/admin/items?state={{ 'active' if item.is_active else 'removed' }}">{{ 'active' if item.is_active else 'removed' }}</a>
+            {% if item.rating %}
+            <a class="table-chip table-chip-link" href="/admin/items?rating={{ item.rating }}">{{ item.rating }}</a>
+            {% endif %}
+        </div>
+        <h2 class="page-title">{{ item.title }}</h2>
+        <p class="page-subtitle"><a class="endpoint-pill endpoint-pill-link" href="{{ item.canonical_url }}" target="_blank" rel="noreferrer">{{ item.canonical_url }}</a></p>
+    </div>
+    <div class="page-actions">
+        <a class="button secondary" href="/admin/items">Back to items</a>
+        {% if source %}
+        <a class="button secondary" href="/admin/sources/{{ source.id }}">Open source</a>
+        {% endif %}
+        <a class="button" href="{{ item.canonical_url }}" target="_blank" rel="noreferrer">Open listing</a>
+    </div>
+</section>
+
+<section class="metrics-grid">
+    <a class="metric-card metric-card-link" href="{{ item.canonical_url }}" target="_blank" rel="noreferrer">
+        <p class="metric-label">Current Price</p>
+        <div class="metric-row"><h3 class="metric-value">{{ fmt_price(item.price_amount) }}</h3></div>
+    </a>
+    <a class="metric-card metric-card-link" href="#snapshot-history">
+        <p class="metric-label">Last Seen</p>
+        <div class="metric-row"><h3 class="metric-value metric-value-small">{{ fmt_dt_short(item.last_seen_at) }}</h3></div>
+    </a>
+    <a class="metric-card metric-card-link" href="#item-findings">
+        <p class="metric-label">Related Findings</p>
+        <div class="metric-row"><h3 class="metric-value">{{ event_stats.total }}</h3><span class="metric-chip {% if event_stats.high %}error{% else %}neutral{% endif %}">{{ event_stats.high }} high</span></div>
+    </a>
+    <a class="metric-card metric-card-link" href="/admin/items?state={{ 'removed' if not item.is_active else 'active' }}">
+        <p class="metric-label">Missing Runs</p>
+        <div class="metric-row"><h3 class="metric-value {% if item.missing_run_count %}accent-warning{% endif %}">{{ item.missing_run_count }}</h3><span class="metric-chip neutral">cooldown state</span></div>
+    </a>
+</section>
+
+<section class="detail-layout">
+    <article class="surface-card surface-table primary-column" id="snapshot-history">
+        <div class="section-head">
+            <div>
+                <p class="section-kicker">History</p>
+                <h3>Recent Snapshots</h3>
+            </div>
+            <span class="table-chip">{{ event_stats.snapshots }} stored</span>
+        </div>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Observed</th>
+                    <th>Run</th>
+                    <th>Price</th>
+                    <th>Availability</th>
+                    <th>Rating</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for snapshot in snapshots %}
+                <tr>
+                    <td>{{ fmt_dt_short(snapshot.observed_at) }}</td>
+                    <td><a class="table-title" href="/admin/runs/{{ snapshot.run_id }}">#{{ snapshot.run_id }}</a></td>
+                    <td class="mono">{{ fmt_price(snapshot.price_amount) }}</td>
+                    <td><a class="badge badge-link badge-{{ 'healthy' if snapshot.availability_status == 'in_stock' else 'neutral' }}" href="/admin/items/{{ item.id }}?q={{ snapshot.availability_status }}#snapshot-history">{{ snapshot.availability_status|replace('_', ' ') }}</a></td>
+                    <td>{% if snapshot.rating %}<span class="table-chip">{{ snapshot.rating }}</span>{% else %}<span class="table-chip">n/a</span>{% endif %}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5"><div class="empty-state">No snapshots stored for this item yet.</div></td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </article>
+
+    <aside class="sidebar-stack sticky-column">
+        <article class="surface-card">
+            <div class="section-head compact">
+                <div>
+                    <p class="section-kicker">State</p>
+                    <h3>Current Record</h3>
+                </div>
+            </div>
+            <div class="definition-list">
+                <div class="definition-item">
+                    <span class="definition-label">Source</span>
+                    <div class="definition-value">
+                        {% if source %}
+                        <a class="table-title" href="/admin/sources/{{ source.id }}">{{ source.name }}</a>
+                        {% else %}
+                        {{ item.source_id }}
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="definition-item">
+                    <span class="definition-label">Identity Key</span>
+                    <div class="definition-value code-block-inline">{{ item.source_item_key }}</div>
+                </div>
+                <div class="definition-item">
+                    <span class="definition-label">First Seen</span>
+                    <div class="definition-value">{{ fmt_dt(item.first_seen_at) }}</div>
+                </div>
+                <div class="definition-item">
+                    <span class="definition-label">Last Seen</span>
+                    <div class="definition-value">{{ fmt_dt(item.last_seen_at) }}</div>
+                </div>
+                <div class="definition-item">
+                    <span class="definition-label">Currency</span>
+                    <div class="definition-value">{{ item.currency }}</div>
+                </div>
+            </div>
+        </article>
+
+        <article class="surface-card">
+            <div class="section-head compact">
+                <div>
+                    <p class="section-kicker">Attributes</p>
+                    <h3>Normalized Fields</h3>
+                </div>
+            </div>
+            <div class="definition-list">
+                {% for key, value in item.attributes_json.items() %}
+                <div class="definition-item">
+                    <span class="definition-label">{{ key|replace('_', ' ') }}</span>
+                    <div class="definition-value">{{ value }}</div>
+                </div>
+                {% else %}
+                <div class="empty-state inline">No additional normalized attributes stored.</div>
+                {% endfor %}
+            </div>
+        </article>
+    </aside>
+</section>
+
+<section class="surface-card primary-column" id="item-findings">
+    <div class="section-head">
+        <div>
+            <p class="section-kicker">Findings</p>
+            <h3>Item Event History</h3>
+        </div>
+        <a class="table-chip table-chip-link" href="/admin/findings?source_id={{ item.source_id }}">{{ event_stats.total }} linked</a>
+    </div>
+    <div class="finding-stack">
+        {% for event in events %}
+        <div class="finding-card">
+            <div class="finding-head">
+                <div>
+                    <p class="row-meta"><a class="inline-filter-link" href="/admin/items/{{ item.id }}?event_type={{ event.event_type }}#item-findings">{{ event.event_type|replace('_', ' ') }}</a></p>
+                    <h4>{{ event.summary_text }}</h4>
+                </div>
+                <div class="stack-inline">
+                    {% if event.is_suppressed %}
+                    <a class="badge badge-link badge-muted" href="/admin/items/{{ item.id }}?suppressed=yes#item-findings">suppressed</a>
+                    {% endif %}
+                    <a class="badge badge-link badge-{{ event.severity }}" href="/admin/items/{{ item.id }}?severity={{ event.severity }}#item-findings">{{ event.severity }}</a>
+                </div>
+            </div>
+            {% if event.old_value_json or event.new_value_json %}
+            <div class="value-grid">
+                <div class="value-box">
+                    <span class="value-label">Previous</span>
+                    <p>{{ event.old_value_json or 'n/a' }}</p>
+                </div>
+                <div class="value-box current">
+                    <span class="value-label">Current</span>
+                    <p>{{ event.new_value_json or 'n/a' }}</p>
+                </div>
+            </div>
+            {% endif %}
+            <div class="finding-foot">
+                <span>{{ fmt_dt_short(event.created_at) }}</span>
+                <a class="text-link" href="/admin/runs/{{ event.run_id }}">Open run</a>
+            </div>
+        </div>
+        {% else %}
+        <div class="empty-state">No item-specific findings matched the current view.</div>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}

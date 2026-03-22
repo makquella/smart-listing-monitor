@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% set title = "Sources" %}
+{% set nav_key = "sources" %}
+{% block content %}
+<section class="page-head">
+    <div>
+        <div class="breadcrumbs">
+            <span>Workspace</span>
+            <span class="material-symbols-outlined">chevron_right</span>
+            <span>Sources</span>
+        </div>
+        <h2 class="page-title">Monitored Sources</h2>
+        <p class="page-subtitle">Manage cadence, health, and manual execution for each monitored source.</p>
+    </div>
+    <div class="page-actions">
+        <a class="button secondary" href="/admin/">Back to dashboard</a>
+    </div>
+</section>
+
+<section class="metrics-grid compact-grid">
+    <a class="metric-card metric-card-link" href="/admin/sources">
+        <p class="metric-label">Total Sources</p>
+        <div class="metric-row">
+            <h3 class="metric-value">{{ sources|length }}</h3>
+        </div>
+    </a>
+    <a class="metric-card metric-card-link" href="/admin/sources?health=healthy">
+        <p class="metric-label">Healthy</p>
+        <div class="metric-row">
+            <h3 class="metric-value">{{ health_counts.healthy }}</h3>
+            <span class="metric-chip healthy">stable</span>
+        </div>
+    </a>
+    <a class="metric-card metric-card-link" href="/admin/sources?health=degraded">
+        <p class="metric-label">Degraded</p>
+        <div class="metric-row">
+            <h3 class="metric-value accent-warning">{{ health_counts.degraded }}</h3>
+            <span class="metric-chip warning">watch</span>
+        </div>
+    </a>
+    <a class="metric-card metric-card-link" href="/admin/sources?attention=yes">
+        <p class="metric-label">Failing / Paused</p>
+        <div class="metric-row">
+            <h3 class="metric-value accent-error">{{ health_counts.failing + health_counts.paused }}</h3>
+            <span class="metric-chip neutral">mixed state</span>
+        </div>
+    </a>
+</section>
+
+<section class="surface-card surface-table">
+    <div class="section-head">
+        <div>
+            <p class="section-kicker">Registry</p>
+            <h3>Source Inventory</h3>
+        </div>
+        <a class="table-chip table-chip-link primary" href="/admin/sources?q=books">Seeded real source</a>
+    </div>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Source</th>
+                <th>Target URL</th>
+                <th>Cadence</th>
+                <th>Last Success</th>
+                <th>Health</th>
+                <th>Items</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for source in sources %}
+            <tr>
+                <td>
+                    <a class="table-title" href="/admin/sources/{{ source.id }}">{{ source.name }}</a>
+                    <p class="row-meta">{{ source.parser_key }} · {{ source.slug }}</p>
+                </td>
+                <td><a class="endpoint-pill endpoint-pill-link" href="{{ source.start_url }}" target="_blank" rel="noreferrer">{{ source.start_url }}</a></td>
+                <td class="mono">Every {{ source.schedule_interval_minutes }}m</td>
+                <td>{{ fmt_dt_short(source.last_successful_run_at) }}</td>
+                <td>
+                    <div class="stack-inline">
+                        <a class="badge badge-link badge-{{ source.health_status }}" href="/admin/sources?health={{ source.health_status }}">{{ source.health_status }}</a>
+                        <a class="badge badge-link badge-neutral" href="/admin/sources?state={{ 'active' if source.is_active else 'paused' }}">{{ 'active' if source.is_active else 'paused' }}</a>
+                    </div>
+                </td>
+                <td class="mono"><a class="inline-filter-link" href="/admin/items?source_id={{ source.id }}">{{ active_item_counts[source.id] }}</a></td>
+                <td>
+                    <div class="row-actions">
+                        <form method="post" action="/admin/sources/{{ source.id }}/run">
+                            <button type="submit" class="icon-button" title="Run source">
+                                <span class="material-symbols-outlined">play_arrow</span>
+                            </button>
+                        </form>
+                        <a href="/admin/sources/{{ source.id }}" class="icon-button secondary" title="Open source">
+                            <span class="material-symbols-outlined">open_in_new</span>
+                        </a>
+                    </div>
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="7"><div class="empty-state">No sources configured yet.</div></td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endblock %}

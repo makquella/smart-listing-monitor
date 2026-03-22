@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ title or "Parset Monitor" }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ request.url_for('static', path='/styles.css') }}">
+</head>
+<body class="console-body">
+    <aside class="app-sidebar">
+        <div class="sidebar-brand">
+            <div>
+                <p class="micro-label">Portfolio MVP</p>
+                <h1>Parset</h1>
+                <p class="sidebar-copy">Operator console for listing monitoring, alerts, and change intelligence.</p>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav">
+            <a href="/admin/" class="nav-link {{ 'active' if nav_key|default('overview') == 'overview' else '' }}">
+                <span class="material-symbols-outlined">dashboard</span>
+                <span>Dashboard</span>
+            </a>
+            <a href="/admin/sources" class="nav-link {{ 'active' if nav_key|default('overview') == 'sources' else '' }}">
+                <span class="material-symbols-outlined">database</span>
+                <span>Sources</span>
+            </a>
+            <a href="/admin/items" class="nav-link {{ 'active' if nav_key|default('overview') == 'items' else '' }}">
+                <span class="material-symbols-outlined">inventory_2</span>
+                <span>Items</span>
+            </a>
+            <a href="/admin/monitors" class="nav-link {{ 'active' if nav_key|default('overview') == 'monitors' else '' }}">
+                <span class="material-symbols-outlined">tune</span>
+                <span>Monitors</span>
+            </a>
+            <a href="/admin/runs" class="nav-link {{ 'active' if nav_key|default('overview') == 'runs' else '' }}">
+                <span class="material-symbols-outlined">play_circle</span>
+                <span>Runs</span>
+            </a>
+            <a href="/admin/findings" class="nav-link {{ 'active' if nav_key|default('overview') == 'findings' else '' }}">
+                <span class="material-symbols-outlined">troubleshoot</span>
+                <span>Findings</span>
+            </a>
+            <a href="/admin/deliveries" class="nav-link {{ 'active' if nav_key|default('overview') == 'deliveries' else '' }}">
+                <span class="material-symbols-outlined">send</span>
+                <span>Deliveries</span>
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="avatar-tile">
+                <span class="material-symbols-outlined">monitoring</span>
+            </div>
+            <div>
+                <p class="footer-title">Console Root</p>
+                <p class="footer-meta">Single-process MVP</p>
+            </div>
+        </div>
+    </aside>
+
+    <header class="app-topbar">
+        <form class="topbar-search" method="get" action="{{ request.url.path }}">
+            {% for key, value in persistent_query_params %}
+            <input type="hidden" name="{{ key }}" value="{{ value }}">
+            {% endfor %}
+            <span class="material-symbols-outlined">search</span>
+            <input
+                type="text"
+                name="q"
+                value="{{ search_query }}"
+                placeholder="{{ search_placeholder|default('Search runs, findings, or sources...') }}"
+            >
+            {% if search_query %}
+            <a class="search-clear" href="{{ search_clear_url }}" aria-label="Clear search">
+                <span class="material-symbols-outlined">close</span>
+            </a>
+            {% endif %}
+        </form>
+        <div class="topbar-meta">
+            {% if search_query %}
+            <span class="top-status query">Filter: {{ search_query }}</span>
+            {% endif %}
+            {% for filter in active_filters %}
+            <span class="top-status query">{{ filter.label }}: {{ filter.value }}</span>
+            {% endfor %}
+            {% if search_query or active_filters %}
+            <a class="top-status clear-link" href="{{ request.url.path }}">Clear view</a>
+            {% endif %}
+            <a href="/admin/monitors" class="top-status {{ 'ready' if integrations.bot_control else 'off' }}">Bot {{ 'ready' if integrations.bot_control else 'off' }}</a>
+            <a href="/admin/deliveries" class="top-status {{ 'ready' if integrations.telegram else 'off' }}">Alerts {{ 'ready' if integrations.telegram else 'off' }}</a>
+            <a href="/admin/" class="top-status {{ 'ready' if integrations.gemini else 'off' }}">Gemini {{ 'ready' if integrations.gemini else 'off' }}</a>
+            <span class="topbar-time">{{ now.strftime("%Y-%m-%d %H:%M UTC") }}</span>
+        </div>
+    </header>
+
+    <main class="app-main">
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>

@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+{% set title = "Run #" ~ run.id %}
+{% set nav_key = "runs" %}
+{% block content %}
+<section class="page-head detail-head">
+    <div>
+        <div class="breadcrumbs">
+            <span>System</span>
+            <span class="material-symbols-outlined">chevron_right</span>
+            <span>Runs</span>
+            <span class="material-symbols-outlined">chevron_right</span>
+            <span>#{{ run.id }}</span>
+        </div>
+        <div class="headline-badges">
+            <a class="badge badge-link badge-{{ run.status }}" href="/admin/runs?status={{ run.status }}">{{ run.status }}</a>
+            {% if source %}
+            <a class="table-chip table-chip-link" href="/admin/sources/{{ source.id }}">{{ source.name }}</a>
+            {% else %}
+            <span class="table-chip">{{ run.source_id }}</span>
+            {% endif %}
+        </div>
+        <h2 class="page-title">Run #{{ run.id }}</h2>
+        <p class="page-subtitle">Executed {{ fmt_dt(run.started_at) }} · Duration {{ fmt_duration(run.duration_ms) }}</p>
+    </div>
+    <div class="page-actions">
+        {% if source %}
+        <form method="post" action="/admin/sources/{{ source.id }}/run">
+            <button type="submit" class="button">Rerun source</button>
+        </form>
+        {% endif %}
+    </div>
+</section>
+
+<section class="metrics-grid">
+    {% if source %}
+    <a class="metric-card metric-card-link" href="/admin/items?source_id={{ source.id }}">
+    {% else %}
+    <div class="metric-card">
+    {% endif %}
+        <p class="metric-label">Items Parsed</p>
+        <div class="metric-row"><h3 class="metric-value">{{ run.items_parsed }}</h3></div>
+    {% if source %}
+    </a>
+    {% else %}
+    </div>
+    {% endif %}
+    <a class="metric-card metric-card-link" href="/admin/findings?run_id={{ run.id }}">
+        <p class="metric-label">Events Detected</p>
+        <div class="metric-row"><h3 class="metric-value">{{ event_stats.total }}</h3><span class="metric-chip neutral">{{ event_stats.suppressed }} suppressed</span></div>
+    </a>
+    <a class="metric-card metric-card-link" href="#notification-log">
+        <p class="metric-label">Alerts Sent</p>
+        <div class="metric-row"><h3 class="metric-value">{{ run.alerts_sent_count }}</h3><span class="metric-chip healthy">{{ event_stats.alerts }} delivered</span></div>
+    </a>
+    <a class="metric-card metric-card-link" href="#monitor-deliveries">
+        <p class="metric-label">Monitor Deliveries</p>
+        <div class="metric-row"><h3 class="metric-value">{{ event_stats.monitor_deliveries }}</h3><span class="metric-chip neutral">bot layer</span></div>
+    </a>
+    <a class="metric-card metric-card-link" href="/admin/runs?status={{ run.status }}">
+        <p class="metric-label">Parse Completeness</p>
+        <div class="metric-row"><h3 class="metric-value">{{ fmt_ratio(run.parse_completeness_ratio) }}</h3><span class="metric-chip {{ 'warning' if run.health_evaluation == 'degraded' else 'neutral' }}">{{ run.health_evaluation or 'n/a' }}</span></div>
+    </a>
+</section>
+
+{% if run.error_message %}
+<section class="surface-card critical-banner">
+    <div class="section-head compact">
+        <div>
+            <p class="section-kicker">Failure Context</p>
+            <h3>Run Error</h3>
+        </div>
+    </div>
+    <p class="summary-text">{{ run.error_message }}</p>
+</section>
+{% endif %}
+
+<section class="detail-layout">
+    <article class="primary-column" id="run-findings">
+        <div class="section-head">
+            <div>
+                <p class="section-kicker">Detected Findings</p>
+                <h3>Run Findings</h3>
+            </div>
+            <a class="table-chip table-chip-link" href="/admin/runs/{{ run.id }}?severity=high#run-findings">{{ event_stats.high }} high severity</a>
+        </div>
+        <div class="finding-stack">
+            {% for event in events %}
+            <div class="finding-card">
+                <div class="finding-head">
+                    <div>
+                        <p class="row-meta"><a class="inline-filter-link" href="/admin/runs/{{ run.id }}?event_type={{ event.event_type }}#run-findings">{{ event.event_type|replace('_', ' ') }}</a></p>
+                        <h4>{{ event.summary_text }}</h4>
+                    </div>
+                    <div class="stack-inline">
+                    {% if event.is_suppressed %}
+                    <a class="badge badge-link badge-muted" href="/admin/runs/{{ run.id }}?suppressed=yes#run-findings">suppressed</a>
+                    {% endif %}
+                        <a class="badge badge-link badge-{{ event.severity }}" href="/admin/runs/{{ run.id }}?severity={{ event.severity }}#run-findings">{{ event.severity }}</a>
+                    </div>
+                </div>
+                {% if event.old_value_json or event.new_value_json %}
+                <div class="value-grid">
+                    <div class="value-box">
+                        <span class="value-label">Previous</span>
+                        <p>{{ event.old_value_json or 'n/a' }}</p>
+                    </div>
+                    <div class="value-box current">
+                        <span class="value-label">Current</span>
+                        <p>{{ event.new_value_json or 'n/a' }}</p>
+                    </div>
+                </div>
+                {% endif %}
+                <div class="finding-foot">
+                    <span>{{ fmt_dt_short(event.created_at) }}</span>
+                    <div class="stack-inline">
+                        {% if event.item_id %}
+                        <a class="text-link" href="/admin/items/{{ event.item_id }}">Open item</a>
+                        {% endif %}
+                        {% if source %}
+                        <a class="text-link" href="/admin/sources/{{ source.id }}">{{ source.name }}</a>
+                        {% else %}
+                        <span>{{ run.source_id }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="surface-card"><div class="empty-state">No events were produced for this run.</div></div>
+            {% endfor %}
+        </div>
+    </article>
+
+    <aside class="sidebar-stack sticky-column">
+        <article class="surface-card summary-card" id="ai-summary">
+            <div class="summary-accent"></div>
+            <div class="summary-body">
+                <div class="section-head compact">
+                    <div>
+                        <p class="section-kicker">Gemini</p>
+                        <h3>AI Summary</h3>
+                    </div>
+                    {% if summary %}
+                    <a class="badge badge-link badge-{{ summary.status }}" href="/admin/runs/{{ run.id }}#ai-summary">{{ summary.status }}</a>
+                    {% endif %}
+                </div>
+                {% if summary %}
+                <p class="summary-text">{{ summary.summary_text }}</p>
+                <div class="summary-list">
+                    {% for highlight in summary.highlights_json %}
+                    <div class="summary-point">
+                        <strong>{{ highlight.title }}</strong>
+                        <p>{{ highlight.why_it_matters }}</p>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="card-actions">
+                    {% if source %}
+                    <a class="text-link" href="/admin/sources/{{ source.id }}">Open source</a>
+                    {% endif %}
+                    <a class="text-link" href="/admin/findings?run_id={{ run.id }}">Open findings</a>
+                </div>
+                {% else %}
+                <div class="empty-state inline">No summary generated for this run.</div>
+                {% endif %}
+            </div>
+        </article>
+
+        <article class="surface-card" id="notification-log">
+            <div class="section-head compact">
+                <div>
+                    <p class="section-kicker">Delivery</p>
+                    <h3>Notification Log</h3>
+                </div>
+            </div>
+            <div class="notification-stack">
+            {% for notification in notifications %}
+            <div class="notification-card">
+                <div class="finding-head">
+                    <div>
+                        <p class="row-meta"><a class="inline-filter-link" href="/admin/runs/{{ run.id }}?notification_type={{ notification.notification_type }}#notification-log">{{ notification.notification_type }}</a></p>
+                        <h4>{{ notification.payload_preview or 'Notification record' }}</h4>
+                    </div>
+                    <a class="badge badge-link badge-{{ notification.status }}" href="/admin/runs/{{ run.id }}?notification_status={{ notification.status }}#notification-log">{{ notification.status }}</a>
+                </div>
+                {% if notification.error_message %}
+                <p class="notification-error">{{ notification.error_message }}</p>
+                {% endif %}
+                <div class="finding-foot">
+                    <span>{{ fmt_dt_short(notification.sent_at) }}</span>
+                    <span>{{ notification.destination or 'not configured' }}</span>
+                </div>
+            </div>
+            {% else %}
+            <div class="empty-state inline">No notifications were logged for this run.</div>
+            {% endfor %}
+            </div>
+        </article>
+
+        <article class="surface-card" id="monitor-deliveries">
+            <div class="section-head compact">
+                <div>
+                    <p class="section-kicker">Telegram-first</p>
+                    <h3>Monitor Deliveries</h3>
+                </div>
+            </div>
+            <div class="notification-stack">
+            {% for delivery in monitor_deliveries %}
+            {% set profile = monitor_profiles.get(delivery.monitor_profile_id) %}
+            {% set chat = delivery_chats.get(delivery.telegram_chat_id) %}
+            <div class="notification-card">
+                <div class="finding-head">
+                    <div>
+                        <p class="row-meta">
+                            <a class="inline-filter-link" href="/admin/runs/{{ run.id }}?delivery_type={{ delivery.delivery_type }}#monitor-deliveries">{{ delivery.delivery_type }}</a>
+                            {% if profile %} · <a class="inline-filter-link" href="/admin/monitors/{{ profile.id }}">{{ profile.name }}</a>{% endif %}
+                        </p>
+                        <h4>{{ delivery.message_preview or 'Monitor delivery record' }}</h4>
+                    </div>
+                    <a class="badge badge-link badge-{{ delivery.status }}" href="/admin/runs/{{ run.id }}?delivery_status={{ delivery.status }}#monitor-deliveries">{{ delivery.status }}</a>
+                </div>
+                {% if delivery.error_text %}
+                <p class="notification-error">{{ delivery.error_text }}</p>
+                {% endif %}
+                <div class="finding-foot">
+                    <span>{{ fmt_dt_short(delivery.created_at) }}</span>
+                    <span>{{ chat.title if chat and chat.title else 'private chat' }}</span>
+                </div>
+            </div>
+            {% else %}
+            <div class="empty-state inline">No per-monitor deliveries were recorded for this run.</div>
+            {% endfor %}
+            </div>
+        </article>
+    </aside>
+</section>
+{% endblock %}

@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% set title = "Findings" %}
+{% set nav_key = "findings" %}
+{% block content %}
+<section class="page-head">
+    <div>
+        <div class="breadcrumbs">
+            <span>Workspace</span>
+            <span class="material-symbols-outlined">chevron_right</span>
+            <span>Findings</span>
+        </div>
+        <h2 class="page-title">Findings Feed</h2>
+        <p class="page-subtitle">Review the latest detected changes, severity assignment, and suppression behavior across the monitoring platform.</p>
+    </div>
+    <div class="page-actions">
+        <a class="button secondary" href="/admin/">Back to dashboard</a>
+    </div>
+</section>
+
+<section class="metrics-grid compact-grid">
+    <a class="metric-card metric-card-link" href="/admin/findings">
+        <p class="metric-label">Total Findings</p>
+        <div class="metric-row"><h3 class="metric-value">{{ finding_stats.total }}</h3></div>
+    </a>
+    <a class="metric-card metric-card-link" href="/admin/findings?severity=high">
+        <p class="metric-label">High Severity</p>
+        <div class="metric-row"><h3 class="metric-value accent-error">{{ finding_stats.high }}</h3><span class="metric-chip error">high</span></div>
+    </a>
+    <a class="metric-card metric-card-link" href="/admin/findings?severity=medium">
+        <p class="metric-label">Medium Severity</p>
+        <div class="metric-row"><h3 class="metric-value accent-warning">{{ finding_stats.medium }}</h3><span class="metric-chip warning">medium</span></div>
+    </a>
+    <a class="metric-card metric-card-link" href="/admin/findings?suppressed=yes">
+        <p class="metric-label">Suppressed</p>
+        <div class="metric-row"><h3 class="metric-value">{{ finding_stats.suppressed }}</h3><span class="metric-chip neutral">cooldown</span></div>
+    </a>
+</section>
+
+<section class="surface-card surface-table">
+    <div class="section-head">
+        <div>
+            <p class="section-kicker">Event Ledger</p>
+            <h3>Recent Findings</h3>
+        </div>
+    </div>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Source</th>
+                <th>Severity</th>
+                <th>Type</th>
+                <th>Summary</th>
+                <th>Created</th>
+                <th>Suppressed</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for event in events %}
+            <tr>
+                <td>
+                    {% if event.source_id in sources %}
+                    <a class="table-title" href="/admin/sources/{{ event.source_id }}">{{ sources[event.source_id].name }}</a>
+                    {% else %}
+                    {{ event.source_id }}
+                    {% endif %}
+                </td>
+                <td><a class="badge badge-link badge-{{ event.severity }}" href="/admin/findings?severity={{ event.severity }}">{{ event.severity }}</a></td>
+                <td><a class="table-chip table-chip-link" href="/admin/findings?event_type={{ event.event_type }}">{{ event.event_type|replace('_', ' ') }}</a></td>
+                <td>
+                    <a class="table-title" href="{{ '/admin/items/' ~ event.item_id if event.item_id else '/admin/runs/' ~ event.run_id }}">{{ event.summary_text }}</a>
+                </td>
+                <td>{{ fmt_dt_short(event.created_at) }}</td>
+                <td><a class="inline-filter-link" href="/admin/findings?suppressed={{ 'yes' if event.is_suppressed else 'no' }}">{{ 'yes' if event.is_suppressed else 'no' }}</a></td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6"><div class="empty-state">No findings yet.</div></td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endblock %}

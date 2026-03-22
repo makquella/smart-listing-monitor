@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% set title = "Runs" %}
+{% set nav_key = "runs" %}
+{% block content %}
+<section class="page-head">
+    <div>
+        <div class="breadcrumbs">
+            <span>Workspace</span>
+            <span class="material-symbols-outlined">chevron_right</span>
+            <span>Runs</span>
+        </div>
+        <h2 class="page-title">Run History</h2>
+        <p class="page-subtitle">Inspect execution quality, throughput, event volume, and delivery outcomes across monitoring runs.</p>
+    </div>
+    <div class="page-actions">
+        <a class="button secondary" href="/admin/">Back to dashboard</a>
+    </div>
+</section>
+
+<section class="metrics-grid compact-grid">
+    <a class="metric-card metric-card-link" href="/admin/runs">
+        <p class="metric-label">Total Runs</p>
+        <div class="metric-row"><h3 class="metric-value">{{ run_stats.total }}</h3></div>
+    </a>
+    <a class="metric-card metric-card-link" href="/admin/runs?status=succeeded">
+        <p class="metric-label">Succeeded</p>
+        <div class="metric-row"><h3 class="metric-value">{{ run_stats.succeeded }}</h3><span class="metric-chip healthy">healthy</span></div>
+    </a>
+    <a class="metric-card metric-card-link" href="/admin/runs?status=degraded">
+        <p class="metric-label">Degraded</p>
+        <div class="metric-row"><h3 class="metric-value accent-warning">{{ run_stats.degraded }}</h3><span class="metric-chip warning">review</span></div>
+    </a>
+    <a class="metric-card metric-card-link" href="/admin/runs?status=failed">
+        <p class="metric-label">Failed</p>
+        <div class="metric-row"><h3 class="metric-value accent-error">{{ run_stats.failed }}</h3><span class="metric-chip error">attention</span></div>
+    </a>
+</section>
+
+<section class="surface-card surface-table">
+    <div class="section-head">
+        <div>
+            <p class="section-kicker">Execution Ledger</p>
+            <h3>Recent Runs</h3>
+        </div>
+    </div>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Run</th>
+                <th>Source</th>
+                <th>Status</th>
+                <th>Trigger</th>
+                <th>Started</th>
+                <th>Duration</th>
+                <th>Items</th>
+                <th>Events</th>
+                <th>Alerts</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for run in runs %}
+            <tr>
+                <td><a class="table-title" href="/admin/runs/{{ run.id }}">#{{ run.id }}</a></td>
+                <td>
+                    {% if run.source_id in sources %}
+                    <a class="table-title" href="/admin/sources/{{ run.source_id }}">{{ sources[run.source_id].name }}</a>
+                    {% else %}
+                    {{ run.source_id }}
+                    {% endif %}
+                </td>
+                <td><a class="badge badge-link badge-{{ run.status }}" href="/admin/runs?status={{ run.status }}">{{ run.status }}</a></td>
+                <td><a class="inline-filter-link" href="/admin/runs?trigger={{ run.trigger_type }}">{{ run.trigger_type }}</a></td>
+                <td>{{ fmt_dt_short(run.started_at) }}</td>
+                <td class="mono">{{ fmt_duration(run.duration_ms) }}</td>
+                <td class="mono">{{ run.items_parsed }}</td>
+                <td class="mono">{{ run.events_count }}</td>
+                <td class="mono">{{ run.alerts_sent_count }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="9"><div class="empty-state">No runs recorded yet.</div></td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endblock %}

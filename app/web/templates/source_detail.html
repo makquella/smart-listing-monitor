@@ -1,0 +1,226 @@
+{% extends "base.html" %}
+{% set title = source.name %}
+{% set nav_key = "sources" %}
+{% block content %}
+<section class="page-head detail-head">
+    <div>
+        <div class="breadcrumbs">
+            <span>Workspace</span>
+            <span class="material-symbols-outlined">chevron_right</span>
+            <span>Sources</span>
+            <span class="material-symbols-outlined">chevron_right</span>
+            <span>{{ source.name }}</span>
+        </div>
+        <div class="headline-badges">
+            <a class="badge badge-link badge-{{ source.health_status }}" href="/admin/sources?health={{ source.health_status }}">{{ source.health_status }}</a>
+            <a class="table-chip table-chip-link" href="/admin/sources?q={{ source.slug }}">ID: {{ source.slug }}</a>
+        </div>
+        <h2 class="page-title">{{ source.name }}</h2>
+        <p class="page-subtitle"><a class="endpoint-pill endpoint-pill-link" href="{{ source.start_url }}" target="_blank" rel="noreferrer">{{ source.start_url }}</a></p>
+    </div>
+    <div class="page-actions">
+        <a href="/admin/sources" class="button secondary">Back to sources</a>
+        <form method="post" action="/admin/sources/{{ source.id }}/run">
+            <button type="submit" class="button">Run now</button>
+        </form>
+    </div>
+</section>
+
+<section class="metrics-grid">
+    <a class="metric-card metric-card-link" href="/admin/items?source_id={{ source.id }}">
+        <p class="metric-label">Active Items</p>
+        <div class="metric-row">
+            <h3 class="metric-value">{{ active_item_count }}</h3>
+            <span class="metric-chip neutral">current state</span>
+        </div>
+    </a>
+    <a class="metric-card metric-card-link" href="#source-settings">
+        <p class="metric-label">Schedule</p>
+        <div class="metric-row">
+            <h3 class="metric-value">{{ source.schedule_interval_minutes }}m</h3>
+            <span class="metric-chip {{ 'healthy' if source.schedule_enabled else 'neutral' }}">
+                {{ 'enabled' if source.schedule_enabled else 'disabled' }}
+            </span>
+        </div>
+    </a>
+    <a class="metric-card metric-card-link" href="/admin/findings?source_id={{ source.id }}">
+        <p class="metric-label">Recent Findings</p>
+        <div class="metric-row">
+            <h3 class="metric-value">{{ events|length }}</h3>
+            <span class="metric-chip {% if finding_counts.high %}error{% else %}neutral{% endif %}">
+                {{ finding_counts.high }} high
+            </span>
+        </div>
+    </a>
+    <a class="metric-card metric-card-link" href="/admin/runs?source_id={{ source.id }}&status=failed">
+        <p class="metric-label">Consecutive Failures</p>
+        <div class="metric-row">
+            <h3 class="metric-value {% if source.consecutive_failures %}accent-error{% endif %}">{{ source.consecutive_failures }}</h3>
+            <span class="metric-chip neutral">{{ 'active' if source.is_active else 'paused' }}</span>
+        </div>
+    </a>
+</section>
+
+<section class="detail-layout">
+    <article class="surface-card surface-table primary-column" id="source-runs">
+        <div class="section-head">
+            <div>
+                <p class="section-kicker">Execution</p>
+                <h3>Recent Runs</h3>
+            </div>
+            {% if latest_run %}
+            <a class="table-chip table-chip-link" href="/admin/runs?source_id={{ source.id }}&status={{ latest_run.status }}">{{ latest_run.status }}</a>
+            {% endif %}
+        </div>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Run</th>
+                    <th>Status</th>
+                    <th>Started</th>
+                    <th>Items</th>
+                    <th>Events</th>
+                    <th>Duration</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for run in runs %}
+                <tr>
+                    <td><a class="table-title" href="/admin/runs/{{ run.id }}">#{{ run.id }}</a></td>
+                    <td><a class="badge badge-link badge-{{ run.status }}" href="/admin/runs?source_id={{ source.id }}&status={{ run.status }}">{{ run.status }}</a></td>
+                    <td>{{ fmt_dt_short(run.started_at) }}</td>
+                    <td class="mono">{{ run.items_parsed }}</td>
+                    <td class="mono">{{ run.events_count }}</td>
+                    <td class="mono">{{ fmt_duration(run.duration_ms) }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6"><div class="empty-state">No runs yet.</div></td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </article>
+
+    <aside class="sidebar-stack">
+        <article class="surface-card" id="source-settings">
+            <div class="section-head compact">
+                <div>
+                    <p class="section-kicker">Configuration</p>
+                    <h3>Schedule Settings</h3>
+                </div>
+            </div>
+            <form method="post" action="/admin/sources/{{ source.id }}/settings" class="settings-form">
+                <label>
+                    Interval minutes
+                    <input type="number" name="schedule_interval_minutes" min="5" value="{{ source.schedule_interval_minutes }}">
+                </label>
+                <label class="toggle-row">
+                    <span>Schedule enabled</span>
+                    <input type="checkbox" name="schedule_enabled" {% if source.schedule_enabled %}checked{% endif %}>
+                </label>
+                <label class="toggle-row">
+                    <span>Source active</span>
+                    <input type="checkbox" name="is_active" {% if source.is_active %}checked{% endif %}>
+                </label>
+                <button type="submit" class="button">Save settings</button>
+            </form>
+        </article>
+
+        <article class="surface-card summary-card">
+            <div class="summary-accent"></div>
+            <div class="summary-body">
+                <div class="section-head compact">
+                    <div>
+                        <p class="section-kicker">Intelligence</p>
+                        <h3>Latest Summary</h3>
+                    </div>
+                </div>
+                {% if summary %}
+                <p class="summary-text">{{ summary.summary_text }}</p>
+                <div class="summary-list">
+                    {% for highlight in summary.highlights_json %}
+                    <div class="summary-point">
+                        <strong>{{ highlight.title }}</strong>
+                        <p>{{ highlight.why_it_matters }}</p>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="card-actions">
+                    <a class="text-link" href="/admin/runs/{{ summary.run_id }}">Open summary run</a>
+                    <a class="text-link" href="/admin/findings?source_id={{ source.id }}">Open source findings</a>
+                </div>
+                {% else %}
+                <div class="empty-state inline">No AI summary available yet.</div>
+                {% endif %}
+            </div>
+        </article>
+    </aside>
+</section>
+
+<section class="dashboard-grid bottom-grid">
+    <article class="surface-card primary-column" id="source-findings">
+        <div class="section-head">
+            <div>
+                <p class="section-kicker">Findings</p>
+                <h3>Latest Findings</h3>
+            </div>
+            <a class="table-chip table-chip-link" href="/admin/findings?source_id={{ source.id }}">{{ events|length }} recent</a>
+        </div>
+        <div class="finding-stack">
+        {% for event in events %}
+        <div class="finding-card">
+            <div class="finding-head">
+                <div>
+                    <p class="row-meta"><a class="inline-filter-link" href="/admin/findings?source_id={{ source.id }}&event_type={{ event.event_type }}">{{ event.event_type|replace('_', ' ') }}</a></p>
+                    <h4>{{ event.summary_text }}</h4>
+                </div>
+                <div class="stack-inline">
+                    {% if event.is_suppressed %}
+                    <a class="badge badge-link badge-muted" href="/admin/findings?source_id={{ source.id }}&suppressed=yes">suppressed</a>
+                    {% endif %}
+                <a class="badge badge-link badge-{{ event.severity }}" href="/admin/findings?source_id={{ source.id }}&severity={{ event.severity }}">{{ event.severity }}</a>
+                </div>
+            </div>
+            <div class="finding-foot">
+                <span>{{ fmt_dt_short(event.created_at) }}</span>
+                <div class="stack-inline">
+                    {% if event.item_id %}
+                    <a class="text-link" href="/admin/items/{{ event.item_id }}">open item</a>
+                    {% endif %}
+                    <a class="text-link" href="/admin/runs/{{ event.run_id }}">open run</a>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="empty-state">No findings for this source yet.</div>
+        {% endfor %}
+        </div>
+    </article>
+
+    <article class="surface-card" id="source-health">
+        <div class="section-head compact">
+            <div>
+                <p class="section-kicker">Health</p>
+                <h3>Source State</h3>
+            </div>
+        </div>
+        <div class="health-list">
+            <a class="health-item health-item-link" href="/admin/runs?source_id={{ source.id }}&status=succeeded">
+                <div class="health-copy"><span class="status-dot healthy"></span><span>Last success</span></div>
+                <strong>{{ fmt_dt_short(source.last_successful_run_at) }}</strong>
+            </a>
+            <a class="health-item health-item-link" href="/admin/runs?source_id={{ source.id }}&status=failed">
+                <div class="health-copy"><span class="status-dot {% if source.last_failed_run_at %}error{% else %}neutral{% endif %}"></span><span>Last failure</span></div>
+                <strong>{{ fmt_dt_short(source.last_failed_run_at) }}</strong>
+            </a>
+            <a class="health-item health-item-link" href="{{ source.start_url }}" target="_blank" rel="noreferrer">
+                <div class="health-copy"><span class="status-dot warning"></span><span>Parser</span></div>
+                <strong>{{ source.parser_key }}</strong>
+            </a>
+            <a class="health-item health-item-link" href="/admin/sources?state={{ 'active' if source.is_active else 'paused' }}">
+                <div class="health-copy"><span class="status-dot neutral"></span><span>Operational state</span></div>
+                <strong>{{ 'active' if source.is_active else 'paused' }}</strong>
+            </a>
+        </div>
+    </article>
+</section>
+{% endblock %}

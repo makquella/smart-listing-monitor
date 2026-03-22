@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% set title = "Items" %}
+{% set nav_key = "items" %}
+{% set search_placeholder = "Search items, URLs, or identity keys..." %}
+{% block content %}
+<section class="page-head">
+    <div>
+        <div class="breadcrumbs">
+            <span>Workspace</span>
+            <span class="material-symbols-outlined">chevron_right</span>
+            <span>Items</span>
+        </div>
+        <h2 class="page-title">Tracked Items</h2>
+        <p class="page-subtitle">Browse the current monitored inventory, inspect normalized state, and jump into item-level history.</p>
+    </div>
+    <div class="page-actions">
+        <a class="button secondary" href="/admin/">Back to dashboard</a>
+        <a class="button" href="/admin/sources">Open sources</a>
+    </div>
+</section>
+
+<section class="metrics-grid compact-grid">
+    <a class="metric-card metric-card-link" href="/admin/items">
+        <p class="metric-label">Total Items</p>
+        <div class="metric-row"><h3 class="metric-value">{{ item_stats.total }}</h3></div>
+    </a>
+    <a class="metric-card metric-card-link" href="/admin/items?state=active">
+        <p class="metric-label">Active</p>
+        <div class="metric-row"><h3 class="metric-value">{{ item_stats.active }}</h3><span class="metric-chip healthy">tracked</span></div>
+    </a>
+    <a class="metric-card metric-card-link" href="/admin/items?availability=in_stock">
+        <p class="metric-label">In Stock</p>
+        <div class="metric-row"><h3 class="metric-value">{{ item_stats.in_stock }}</h3><span class="metric-chip healthy">available</span></div>
+    </a>
+    <a class="metric-card metric-card-link" href="/admin/items?state=removed">
+        <p class="metric-label">Removed</p>
+        <div class="metric-row"><h3 class="metric-value accent-warning">{{ item_stats.removed }}</h3><span class="metric-chip warning">historical</span></div>
+    </a>
+</section>
+
+<section class="surface-card surface-table">
+    <div class="section-head">
+        <div>
+            <p class="section-kicker">Inventory</p>
+            <h3>Current Item Registry</h3>
+        </div>
+        <a class="table-chip table-chip-link primary" href="/admin/items?state=active">Operator view</a>
+    </div>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Item</th>
+                <th>Source</th>
+                <th>Price</th>
+                <th>Availability</th>
+                <th>Rating</th>
+                <th>Last Seen</th>
+                <th>State</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td>
+                    <a class="table-title" href="/admin/items/{{ item.id }}">{{ item.title }}</a>
+                    <p class="row-meta">{{ item.source_item_key }}</p>
+                </td>
+                <td>
+                    {% if item.source_id in sources %}
+                    <a class="table-title" href="/admin/sources/{{ item.source_id }}">{{ sources[item.source_id].name }}</a>
+                    {% else %}
+                    {{ item.source_id }}
+                    {% endif %}
+                </td>
+                <td class="mono">{{ fmt_price(item.price_amount) }}</td>
+                <td><a class="badge badge-link badge-{{ 'healthy' if item.availability_status == 'in_stock' else 'neutral' }}" href="/admin/items?availability={{ item.availability_status }}">{{ item.availability_status|replace('_', ' ') }}</a></td>
+                <td>
+                    {% if item.rating %}
+                    <a class="table-chip table-chip-link" href="/admin/items?rating={{ item.rating }}">{{ item.rating }}</a>
+                    {% else %}
+                    <span class="table-chip">n/a</span>
+                    {% endif %}
+                </td>
+                <td>{{ fmt_dt_short(item.last_seen_at) }}</td>
+                <td><a class="badge badge-link badge-{{ 'healthy' if item.is_active else 'neutral' }}" href="/admin/items?state={{ 'active' if item.is_active else 'removed' }}">{{ 'active' if item.is_active else 'removed' }}</a></td>
+            </tr>
+            {% else %}
+            <tr><td colspan="7"><div class="empty-state">No items matched the current view.</div></td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endblock %}
