@@ -25,6 +25,7 @@
             <h3 class="metric-value">{{ stats.active_sources }}</h3>
             <span class="metric-chip healthy">{{ health_counts.healthy }} healthy</span>
         </div>
+        <p class="metric-support">{{ health_counts.failing }} failing · {{ health_counts.degraded }} degraded right now.</p>
     </a>
     <a class="metric-card metric-card-link" href="/admin/items">
         <p class="metric-label">Tracked Items</p>
@@ -32,6 +33,7 @@
             <h3 class="metric-value">{{ stats.active_items }}</h3>
             <span class="metric-chip neutral">current state</span>
         </div>
+        <p class="metric-support">Inventory normalized across {{ stats.active_sources }} live sources.</p>
     </a>
     <a class="metric-card metric-card-link" href="/admin/findings?severity=high">
         <p class="metric-label">High Severity Findings</p>
@@ -41,6 +43,7 @@
                 {{ 'attention' if stats.high_events else 'clear' }}
             </span>
         </div>
+        <p class="metric-support">{{ stats.recent_events }} recent findings are visible in the operator feed.</p>
     </a>
     <a class="metric-card metric-card-link" href="/admin/runs?status=succeeded">
         <p class="metric-label">Recent Success Rate</p>
@@ -48,6 +51,7 @@
             <h3 class="metric-value">{{ stats.success_rate }}%</h3>
             <span class="metric-chip healthy">{{ stats.recent_runs }} runs</span>
         </div>
+        <p class="metric-support">Computed across the latest {{ stats.recent_runs }} recorded runs.</p>
     </a>
 </section>
 
@@ -58,9 +62,9 @@
                 <p class="section-kicker">Live Feed</p>
                 <h3>Recent Findings</h3>
             </div>
-            <a href="/admin/findings" class="text-link">Browse findings</a>
+            <a href="/admin/findings" class="section-action">Browse findings</a>
         </div>
-        <table class="data-table">
+        <table class="data-table compact-table">
             <thead>
                 <tr>
                     <th>Severity</th>
@@ -74,8 +78,8 @@
                 <tr>
                     <td><a class="badge badge-link badge-{{ event.severity }}" href="/admin/findings?severity={{ event.severity }}">{{ event.severity }}</a></td>
                     <td><a class="table-chip table-chip-link" href="/admin/findings?event_type={{ event.event_type }}">{{ event.event_type|replace('_', ' ') }}</a></td>
-                    <td>
-                        <a class="table-title" href="{{ '/admin/items/' ~ event.item_id if event.item_id else '/admin/runs/' ~ event.run_id }}">{{ event.summary_text }}</a>
+                    <td class="summary-cell">
+                        <a class="table-title summary-line-clamp" href="{{ '/admin/items/' ~ event.item_id if event.item_id else '/admin/runs/' ~ event.run_id }}">{{ event.summary_text }}</a>
                     </td>
                     <td class="mono">{{ fmt_dt_short(event.created_at) }}</td>
                 </tr>
@@ -114,6 +118,21 @@
                 {% else %}
                 <div class="empty-state inline">No summary available yet.</div>
                 {% endif %}
+            </div>
+        </article>
+
+        <article class="surface-card">
+            <div class="section-head compact">
+                <div>
+                    <p class="section-kicker">Ops Snapshot</p>
+                    <h3>Recent Operational Signals</h3>
+                </div>
+            </div>
+            <div class="definition-list">
+                <div class="definition-item"><span class="definition-label">Last run</span><div class="definition-value">{% if last_run %}<a class="table-title" href="/admin/runs/{{ last_run.id }}">Run #{{ last_run.id }}</a> · {{ last_run.status }}{% else %}No recent runs{% endif %}</div></div>
+                <div class="definition-item"><span class="definition-label">Last source checked</span><div class="definition-value">{% if last_source_checked %}<a class="table-title" href="/admin/sources/{{ last_source_checked.id }}">{{ last_source_checked.name }}</a>{% else %}No source run yet{% endif %}</div></div>
+                <div class="definition-item"><span class="definition-label">Last alert sent</span><div class="definition-value">{% if last_alert_sent %}<a class="table-title" href="/admin/deliveries?status=sent">{{ fmt_dt_short(last_alert_sent.created_at) }}</a> · {{ last_alert_sent.delivery_type }}{% else %}No sent deliveries yet{% endif %}</div></div>
+                <div class="definition-item"><span class="definition-label">Last monitor match</span><div class="definition-value">{% if last_monitor_match %}<a class="table-title" href="/admin/monitors/{{ last_monitor_match.monitor_profile_id }}">{{ fmt_dt_short(last_monitor_match.created_at) }}</a> · {{ last_monitor_match.priority }}{% else %}No monitor matches yet{% endif %}</div></div>
             </div>
         </article>
 
@@ -165,7 +184,7 @@
                 <p class="section-kicker">Execution</p>
                 <h3>Recent Runs</h3>
             </div>
-            <a href="/admin/runs" class="text-link">Open run history</a>
+            <a href="/admin/runs" class="section-action">Open run history</a>
         </div>
         <table class="data-table">
             <thead>

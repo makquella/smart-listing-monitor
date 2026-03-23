@@ -34,7 +34,7 @@
 <section class="metrics-grid">
     <a class="metric-card metric-card-link" href="{{ item.canonical_url }}" target="_blank" rel="noreferrer">
         <p class="metric-label">Current Price</p>
-        <div class="metric-row"><h3 class="metric-value">{{ fmt_price(item.price_amount) }}</h3></div>
+        <div class="metric-row"><h3 class="metric-value">{{ fmt_price(item.price_amount, item.currency) }}</h3></div>
     </a>
     <a class="metric-card metric-card-link" href="#snapshot-history">
         <p class="metric-label">Last Seen</p>
@@ -50,7 +50,7 @@
     </a>
 </section>
 
-<section class="detail-layout">
+<section class="detail-layout detail-layout-wide">
     <article class="surface-card surface-table primary-column" id="snapshot-history">
         <div class="section-head">
             <div>
@@ -74,7 +74,7 @@
                 <tr>
                     <td>{{ fmt_dt_short(snapshot.observed_at) }}</td>
                     <td><a class="table-title" href="/admin/runs/{{ snapshot.run_id }}">#{{ snapshot.run_id }}</a></td>
-                    <td class="mono">{{ fmt_price(snapshot.price_amount) }}</td>
+                    <td class="mono">{{ fmt_price(snapshot.price_amount, snapshot.currency) }}</td>
                     <td><a class="badge badge-link badge-{{ 'healthy' if snapshot.availability_status == 'in_stock' else 'neutral' }}" href="/admin/items/{{ item.id }}?q={{ snapshot.availability_status }}#snapshot-history">{{ snapshot.availability_status|replace('_', ' ') }}</a></td>
                     <td>{% if snapshot.rating %}<span class="table-chip">{{ snapshot.rating }}</span>{% else %}<span class="table-chip">n/a</span>{% endif %}</td>
                 </tr>

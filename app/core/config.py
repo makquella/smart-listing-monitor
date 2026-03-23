@@ -21,6 +21,10 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     database_url: str = "sqlite:///./data/app.db"
     admin_read_only_mode: bool = Field(default=False, alias="ADMIN_READ_ONLY_MODE")
+    runtime_mode: str = Field(default="single_process", alias="RUNTIME_MODE")
+    allow_unsafe_multi_process_runtime: bool = Field(
+        default=False, alias="ALLOW_UNSAFE_MULTI_PROCESS_RUNTIME"
+    )
     http_retry_attempts: int = Field(default=3, alias="HTTP_RETRY_ATTEMPTS")
     http_retry_base_seconds: float = Field(default=1.0, alias="HTTP_RETRY_BASE_SECONDS")
 
@@ -42,6 +46,11 @@ class Settings(BaseSettings):
     books_source_slug: str = "books-to-scrape"
     books_source_base_url: str = "https://books.toscrape.com/"
     books_source_start_url: str = "https://books.toscrape.com/catalogue/page-1.html"
+    seed_additional_demo_sources: bool = Field(default=True, alias="SEED_ADDITIONAL_DEMO_SOURCES")
+    webscraper_source_name: str = "Web Scraper Phones"
+    webscraper_source_slug: str = "webscraper-phones"
+    webscraper_source_base_url: str = "https://webscraper.io/"
+    webscraper_source_start_url: str = "https://webscraper.io/test-sites/e-commerce/static/phones"
 
     telegram_bot_token: str | None = None
     telegram_chat_id: str | None = None

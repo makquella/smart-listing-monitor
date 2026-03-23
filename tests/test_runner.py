@@ -30,6 +30,12 @@ class FakeAdapter:
         self._calls += 1
         return response
 
+    def requires_enrichment(
+        self, item: ParsedItem, existing_attributes: dict | None = None
+    ) -> bool:
+        attributes = existing_attributes or item.attributes
+        return "category" not in attributes
+
     def enrich_items(self, source: Source, items: list[ParsedItem]) -> list[ParsedItem]:
         self.enrich_calls += 1
         for parsed_item in items:

@@ -81,6 +81,16 @@ def test_source_detail_page_opens(smoke_client) -> None:
     assert "Source State" in response.text
 
 
+def test_sources_page_lists_curated_seed_sources(smoke_client) -> None:
+    client, _ = smoke_client
+
+    response = client.get("/admin/sources")
+
+    assert response.status_code == 200
+    assert "Books to Scrape" in response.text
+    assert "Web Scraper Phones" in response.text
+
+
 def test_manual_run_endpoint_redirects_and_enqueues(smoke_client) -> None:
     client, dispatcher = smoke_client
 

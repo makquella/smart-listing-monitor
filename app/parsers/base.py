@@ -14,6 +14,11 @@ class BaseSourceAdapter(ABC):
     def supported_categories(self) -> list[str]:
         return []
 
+    def requires_enrichment(
+        self, item: ParsedItem, existing_attributes: dict | None = None
+    ) -> bool:
+        return not item.attributes.get("category")
+
     def enrich_items(self, source: Source, items: list[ParsedItem]) -> list[ParsedItem]:
         return items
 

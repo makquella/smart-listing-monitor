@@ -5,6 +5,8 @@ from sqlalchemy import desc, select
 from sqlalchemy.orm import Session
 
 from app.models.run import MonitoringRun
+from app.models.source import Source
+from app.repositories.query_filters import text_search_clause
 
 
 class RunRepository:
@@ -55,6 +57,38 @@ class RunRepository:
     def list_recent(self, limit: int = 20) -> Sequence[MonitoringRun]:
         statement = select(MonitoringRun).order_by(desc(MonitoringRun.started_at)).limit(limit)
         return list(self.session.scalars(statement))
+
+    def list_for_admin(
+        self,
+        *,
+        limit: int = 30,
+        status: str | None = None,
+        trigger_type: str | None = None,
+        source_id: int | None = None,
+        search_query: str | None = None,
+    ) -> Sequence[MonitoringRun]:
+        statement = select(MonitoringRun).outerjoin(Source, Source.id == MonitoringRun.source_id)
+        if status:
+            statement = statement.where(MonitoringRun.status == status)
+        if trigger_type:
+            statement = statement.where(MonitoringRun.trigger_type == trigger_type)
+        if source_id is not None:
+            statement = statement.where(MonitoringRun.source_id == source_id)
+        if search_query:
+            statement = statement.where(
+                text_search_clause(
+                    search_query,
+                    [
+                        MonitoringRun.id,
+                        MonitoringRun.status,
+                        MonitoringRun.trigger_type,
+                        MonitoringRun.error_message,
+                        Source.name,
+                    ],
+                )
+            )
+        statement = statement.order_by(desc(MonitoringRun.started_at)).limit(limit)
+        return list(self.session.scalars(statement).unique())
 
     def list_recent_by_source(self, source_id: int, limit: int = 10) -> Sequence[MonitoringRun]:
         statement = (

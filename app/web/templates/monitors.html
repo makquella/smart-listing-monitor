@@ -23,18 +23,22 @@
     <a class="metric-card metric-card-link" href="/admin/monitors">
         <p class="metric-label">Total Profiles</p>
         <div class="metric-row"><h3 class="metric-value">{{ monitor_stats.total }}</h3></div>
+        <p class="metric-support">Telegram-facing monitor registry across all supported sources.</p>
     </a>
     <a class="metric-card metric-card-link" href="/admin/monitors?state=active">
         <p class="metric-label">Active</p>
         <div class="metric-row"><h3 class="metric-value">{{ monitor_stats.active }}</h3><span class="metric-chip healthy">live</span></div>
+        <p class="metric-support">Profiles currently eligible for matching and delivery.</p>
     </a>
-    <a class="metric-card metric-card-link" href="/admin/monitors?instant=yes">
-        <p class="metric-label">Instant Alerts</p>
-        <div class="metric-row"><h3 class="metric-value">{{ monitor_stats.instant }}</h3><span class="metric-chip healthy">enabled</span></div>
+    <a class="metric-card metric-card-link emphasis" href="/admin/monitors">
+        <p class="metric-label">Matches 24h</p>
+        <div class="metric-row"><h3 class="metric-value">{{ monitor_stats.matches_24h }}</h3><span class="metric-chip warning">recent</span></div>
+        <p class="metric-support">Fresh event-to-monitor matches across the control plane.</p>
     </a>
-    <a class="metric-card metric-card-link" href="/admin/monitors?digest=yes">
-        <p class="metric-label">Digests</p>
-        <div class="metric-row"><h3 class="metric-value">{{ monitor_stats.digest }}</h3><span class="metric-chip neutral">enabled</span></div>
+    <a class="metric-card metric-card-link emphasis" href="/admin/deliveries">
+        <p class="metric-label">Deliveries 7d</p>
+        <div class="metric-row"><h3 class="metric-value">{{ monitor_stats.deliveries_7d }}</h3><span class="metric-chip neutral">logged</span></div>
+        <p class="metric-support">Instant alerts and digests recently delivered or attempted.</p>
     </a>
 </section>
 
@@ -44,63 +48,184 @@
             <p class="section-kicker">Control Plane</p>
             <h3>Telegram Monitor Profiles</h3>
         </div>
-        <a class="table-chip table-chip-link primary" href="/admin/deliveries">Delivery view</a>
+        <a class="section-action" href="/admin/deliveries">Delivery view</a>
     </div>
-    <table class="data-table">
-        <thead>
-            <tr>
-                <th>Monitor</th>
-                <th>Source</th>
-                <th>Chat</th>
-                <th>Filters</th>
-                <th>Alerts</th>
-                <th>Status</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for profile in profiles %}
-            <tr>
-                <td>
-                    <a class="table-title" href="/admin/monitors/{{ profile.id }}">{{ profile.name }}</a>
-                    <p class="row-meta">priority={{ profile.priority_mode }}</p>
-                </td>
-                <td>
-                    {% if profile.source_id in sources %}
-                    <a class="table-title" href="/admin/sources/{{ profile.source_id }}">{{ sources[profile.source_id].name }}</a>
-                    {% else %}
-                    {{ profile.source_id }}
-                    {% endif %}
-                </td>
-                <td>
-                    {% set chat = chats.get(profile.telegram_chat_id) %}
-                    {% set user = users.get(profile.telegram_user_id) %}
-                    <div>{{ chat.title if chat and chat.title else ('@' ~ user.username if user and user.username else 'private chat') }}</div>
-                    <p class="row-meta">{{ chat.chat_type if chat else 'unknown' }}</p>
-                </td>
-                <td>
-                    <div class="stack-inline">
-                        {% if profile.category %}<span class="table-chip">{{ profile.category }}</span>{% endif %}
-                        {% if profile.max_price is not none %}<span class="table-chip">max {{ fmt_price(profile.max_price) }}</span>{% endif %}
-                        {% if profile.include_keywords_json %}<span class="table-chip">{{ profile.include_keywords_json|length }} include</span>{% endif %}
+    <div class="monitor-board">
+        {% for profile in profiles %}
+        {% set activity = profile_activity.get(profile.id) %}
+        {% set chat = chats.get(profile.telegram_chat_id) %}
+        {% set user = users.get(profile.telegram_user_id) %}
+        <article class="monitor-card">
+            <div class="monitor-card-head">
+                <div>
+                    <div class="chip-cluster">
+                        <a class="badge badge-link badge-{{ 'healthy' if profile.is_active else 'neutral' }}" href="/admin/monitors?state={{ 'active' if profile.is_active else 'paused' }}">{{ 'active' if profile.is_active else 'paused' }}</a>
+                        <a class="table-chip table-chip-link" href="/admin/monitors?priority_mode={{ profile.priority_mode }}">{{ profile.priority_mode }}</a>
                     </div>
-                </td>
-                <td>
-                    <div class="stack-inline">
+                    <a class="monitor-card-title" href="/admin/monitors/{{ profile.id }}">{{ profile.name }}</a>
+                    <p class="monitor-card-copy">
+                        {% if profile.source_id in sources %}
+                        <a class="table-title" href="/admin/sources/{{ profile.source_id }}">{{ sources[profile.source_id].name }}</a>
+                        {% else %}
+                        <span class="table-title">Source #{{ profile.source_id }}</span>
+                        {% endif %}
+                        · {{ monitor_target_label(profile, chats, users) }}
+                    </p>
+                </div>
+                <a class="section-action" href="/admin/monitors/{{ profile.id }}">Open monitor</a>
+            </div>
+
+            <div class="chip-cluster">
+                {% if profile.category %}<span class="table-chip">{{ profile.category }}</span>{% endif %}
+                {% if profile.min_price is not none and profile.max_price is not none %}
+                <span class="table-chip">{{ fmt_price(profile.min_price) }} → {{ fmt_price(profile.max_price) }}</span>
+                {% elif profile.max_price is not none %}
+                <span class="table-chip">max {{ fmt_price(profile.max_price) }}</span>
+                {% elif profile.min_price is not none %}
+                <span class="table-chip">min {{ fmt_price(profile.min_price) }}</span>
+                {% endif %}
+                {% if profile.include_keywords_json %}<span class="table-chip">{{ profile.include_keywords_json|length }} include</span>{% endif %}
+                {% if profile.exclude_keywords_json %}<span class="table-chip">{{ profile.exclude_keywords_json|length }} exclude</span>{% endif %}
+            </div>
+
+            <div class="monitor-card-grid">
+                <div class="monitor-card-metric">
+                    <span class="definition-label">Last match</span>
+                    {% if activity and activity.last_match_at %}
+                    <strong>{{ fmt_dt_short(activity.last_match_at) }}</strong>
+                    <p>{{ activity.matches_24h }} in 24h · {{ activity.matches_7d }} in 7d{% if activity.high_matches_7d %} · {{ activity.high_matches_7d }} high{% endif %}</p>
+                    {% else %}
+                    <strong>No recent matches</strong>
+                    <p>Waiting for the next qualifying event.</p>
+                    {% endif %}
+                </div>
+
+                <div class="monitor-card-metric">
+                    <span class="definition-label">Delivery</span>
+                    {% if activity and activity.last_delivery_at %}
+                    <strong>{{ fmt_dt_short(activity.last_delivery_at) }}</strong>
+                    <p>Last {{ activity.last_delivery_type or 'delivery' }} · {{ activity.last_delivery_status or 'unknown' }}</p>
+                    {% else %}
+                    <strong>No recent delivery</strong>
+                    <p>Instant alerts and digests will appear here.</p>
+                    {% endif %}
+                </div>
+
+                <div class="monitor-card-metric">
+                    <span class="definition-label">Notification Modes</span>
+                    <div class="chip-cluster">
                         <a class="badge badge-link badge-{{ 'healthy' if profile.instant_alerts_enabled else 'neutral' }}" href="/admin/monitors?instant={{ 'yes' if profile.instant_alerts_enabled else 'no' }}">instant {{ 'on' if profile.instant_alerts_enabled else 'off' }}</a>
                         <a class="badge badge-link badge-{{ 'healthy' if profile.digest_enabled else 'neutral' }}" href="/admin/monitors?digest={{ 'yes' if profile.digest_enabled else 'no' }}">digest {{ 'on' if profile.digest_enabled else 'off' }}</a>
                     </div>
-                </td>
-                <td>
-                    <div class="stack-inline">
-                        <a class="badge badge-link badge-{{ 'healthy' if profile.is_active else 'neutral' }}" href="/admin/monitors?state={{ 'active' if profile.is_active else 'paused' }}">{{ 'active' if profile.is_active else 'paused' }}</a>
-                        <a class="text-link" href="/admin/monitors/{{ profile.id }}">Open</a>
+                    <p>{{ chat.chat_type if chat else 'unknown' }} delivery target.</p>
+                </div>
+
+                <div class="monitor-card-metric">
+                    <span class="definition-label">Health</span>
+                    {% if activity and activity.failed_deliveries_7d %}
+                    <strong>{{ activity.failed_deliveries_7d }} failed deliveries</strong>
+                    <p>Review delivery log for recent failures.</p>
+                    {% else %}
+                    <strong>Delivery path clear</strong>
+                    <p>No recent delivery failures recorded in the last 7d.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </article>
+        {% else %}
+        <div class="empty-state">No Telegram monitor profiles exist yet. Create one through the bot control layer.</div>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="dashboard-grid bottom-grid">
+    <article class="surface-card primary-column">
+        <div class="section-head">
+            <div>
+                <p class="section-kicker">Matching</p>
+                <h3>Recent Monitor Matches</h3>
+            </div>
+            <span class="table-chip">{{ recent_matches|length }} shown</span>
+        </div>
+        <div class="finding-stack">
+            {% for match in recent_matches[:5] %}
+            {% set profile = profiles_by_id.get(match.monitor_profile_id) %}
+            {% set event = recent_match_events.get(match.detected_event_id) %}
+            {% set run = recent_match_runs.get(match.monitoring_run_id) %}
+            <div class="finding-card compact-card">
+                <div class="finding-head">
+                    <div>
+                        <p class="row-meta">{{ profile.name if profile else ('Monitor #' ~ match.monitor_profile_id) }}</p>
+                        <h4>{{ event.summary_text if event else match.match_reason }}</h4>
                     </div>
-                </td>
-            </tr>
+                    <span class="badge badge-{{ match.priority }}">{{ match.priority }}</span>
+                </div>
+                <p class="summary-line-clamp">{{ match.match_reason }}</p>
+                <div class="finding-foot">
+                    <span>{{ fmt_dt_short(match.created_at) }}</span>
+                    <div class="stack-inline">
+                        {% if profile %}
+                        <a class="text-link" href="/admin/monitors/{{ profile.id }}">Open monitor</a>
+                        {% endif %}
+                        {% if run %}
+                        <a class="text-link" href="/admin/runs/{{ run.id }}">Run #{{ run.id }}</a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
             {% else %}
-            <tr><td colspan="6"><div class="empty-state">No Telegram monitor profiles exist yet. Create one through the bot control layer.</div></td></tr>
+            <div class="empty-state">No monitor matches have been recorded for the current view yet.</div>
             {% endfor %}
-        </tbody>
-    </table>
+        </div>
+    </article>
+
+    <aside class="sidebar-stack">
+        <article class="surface-card">
+            <div class="section-head compact">
+                <div>
+                    <p class="section-kicker">Notification Posture</p>
+                    <h3>Control Surface</h3>
+                </div>
+            </div>
+            <div class="definition-list">
+                <div class="definition-item"><span class="definition-label">Instant enabled</span><div class="definition-value">{{ activity_stats.instant }}</div></div>
+                <div class="definition-item"><span class="definition-label">Digest enabled</span><div class="definition-value">{{ activity_stats.digest }}</div></div>
+                <div class="definition-item"><span class="definition-label">High-only profiles</span><div class="definition-value">{{ activity_stats.high_only }}</div></div>
+            </div>
+        </article>
+
+        <article class="surface-card">
+            <div class="section-head compact">
+                <div>
+                    <p class="section-kicker">Delivery</p>
+                    <h3>Recent Delivery Activity</h3>
+                </div>
+                <a class="text-link" href="/admin/deliveries">Open deliveries</a>
+            </div>
+            <div class="notification-stack">
+                {% for delivery in recent_deliveries[:5] %}
+                {% set profile = profiles_by_id.get(delivery.monitor_profile_id) %}
+                <div class="notification-card compact-card">
+                    <div class="finding-head">
+                        <div>
+                            <p class="row-meta">{{ profile.name if profile else ('Monitor #' ~ delivery.monitor_profile_id) }}</p>
+                            <h4>{{ delivery.delivery_type|replace('_', ' ') }}</h4>
+                        </div>
+                        <span class="badge badge-{{ delivery.status }}">{{ delivery.status }}</span>
+                    </div>
+                    <p class="summary-line-clamp">{{ delivery.message_preview or 'Notification delivery logged for this monitor.' }}</p>
+                    <div class="finding-foot">
+                        <span>{{ fmt_dt_short(delivery.created_at) }}</span>
+                        {% if profile %}
+                        <a class="text-link" href="/admin/monitors/{{ profile.id }}">Open monitor</a>
+                        {% endif %}
+                    </div>
+                </div>
+                {% else %}
+                <div class="empty-state inline">No delivery activity for the current monitor set yet.</div>
+                {% endfor %}
+            </div>
+        </article>
+    </aside>
 </section>
 {% endblock %}

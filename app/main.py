@@ -11,6 +11,7 @@ from app.bot.main import TelegramBotController
 from app.core.config import get_settings
 from app.core.db import init_db
 from app.core.logging import configure_logging
+from app.core.runtime import enforce_runtime_mode
 from app.core.scheduler import SchedulerService
 from app.repositories.sources import SourceRepository
 from app.services.monitor_runner import MonitorRunner, build_runner_dependencies
@@ -27,12 +28,13 @@ def build_runner() -> MonitorRunner:
 async def lifespan(app: FastAPI):
     settings = app.state.settings
     configure_logging(settings.log_level)
+    enforce_runtime_mode(settings)
     init_db()
 
     from app.core.db import SessionLocal
 
     with SessionLocal() as session:
-        SourceRepository(session).ensure_seed_source(settings)
+        SourceRepository(session).ensure_seed_sources(settings)
 
     runner = build_runner()
     dispatcher = RunDispatcher(runner=runner)

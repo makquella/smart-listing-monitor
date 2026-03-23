@@ -36,6 +36,53 @@
     </a>
 </section>
 
+<section class="surface-card filter-toolbar">
+    <form method="get" action="/admin/findings" class="filter-form">
+        <div class="filter-field">
+            <label for="findings-severity-filter">Severity</label>
+            <select id="findings-severity-filter" name="severity">
+                <option value="">All severities</option>
+                {% for value in ["high", "medium", "low"] %}
+                <option value="{{ value }}" {% if request.query_params.get('severity', '') == value %}selected{% endif %}>{{ value }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="filter-field">
+            <label for="findings-type-filter">Event type</label>
+            <select id="findings-type-filter" name="event_type">
+                <option value="">All types</option>
+                {% for value in finding_filters.event_types %}
+                <option value="{{ value }}" {% if request.query_params.get('event_type', '') == value %}selected{% endif %}>{{ value|replace('_', ' ') }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="filter-field">
+            <label for="findings-source-filter">Source</label>
+            <select id="findings-source-filter" name="source_id">
+                <option value="">All sources</option>
+                {% for source in finding_filters.sources %}
+                <option value="{{ source.id }}" {% if request.query_params.get('source_id', '') == source.id|string %}selected{% endif %}>{{ source.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="filter-field">
+            <label for="findings-suppressed-filter">Suppressed</label>
+            <select id="findings-suppressed-filter" name="suppressed">
+                <option value="">All</option>
+                <option value="yes" {% if request.query_params.get('suppressed', '') == 'yes' %}selected{% endif %}>yes</option>
+                <option value="no" {% if request.query_params.get('suppressed', '') == 'no' %}selected{% endif %}>no</option>
+            </select>
+        </div>
+        {% if search_query %}
+        <input type="hidden" name="q" value="{{ search_query }}">
+        {% endif %}
+        <div class="filter-actions">
+            <button type="submit" class="button secondary">Apply filters</button>
+            <a class="text-link" href="/admin/findings">Clear filters</a>
+        </div>
+    </form>
+</section>
+
 <section class="surface-card surface-table">
     <div class="section-head">
         <div>
@@ -43,7 +90,7 @@
             <h3>Recent Findings</h3>
         </div>
     </div>
-    <table class="data-table">
+    <table class="data-table compact-table">
         <thead>
             <tr>
                 <th>Source</th>
@@ -56,7 +103,7 @@
         </thead>
         <tbody>
             {% for event in events %}
-            <tr>
+            <tr data-row-href="{{ '/admin/items/' ~ event.item_id if event.item_id else '/admin/runs/' ~ event.run_id }}" tabindex="0">
                 <td>
                     {% if event.source_id in sources %}
                     <a class="table-title" href="/admin/sources/{{ event.source_id }}">{{ sources[event.source_id].name }}</a>
@@ -66,8 +113,8 @@
                 </td>
                 <td><a class="badge badge-link badge-{{ event.severity }}" href="/admin/findings?severity={{ event.severity }}">{{ event.severity }}</a></td>
                 <td><a class="table-chip table-chip-link" href="/admin/findings?event_type={{ event.event_type }}">{{ event.event_type|replace('_', ' ') }}</a></td>
-                <td>
-                    <a class="table-title" href="{{ '/admin/items/' ~ event.item_id if event.item_id else '/admin/runs/' ~ event.run_id }}">{{ event.summary_text }}</a>
+                <td class="summary-cell">
+                    <a class="table-title summary-line-clamp" href="{{ '/admin/items/' ~ event.item_id if event.item_id else '/admin/runs/' ~ event.run_id }}">{{ event.summary_text }}</a>
                 </td>
                 <td>{{ fmt_dt_short(event.created_at) }}</td>
                 <td><a class="inline-filter-link" href="/admin/findings?suppressed={{ 'yes' if event.is_suppressed else 'no' }}">{{ 'yes' if event.is_suppressed else 'no' }}</a></td>

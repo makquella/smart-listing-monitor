@@ -36,6 +36,45 @@
     </a>
 </section>
 
+<section class="surface-card filter-toolbar">
+    <form method="get" action="/admin/runs" class="filter-form">
+        <div class="filter-field">
+            <label for="runs-status-filter">Status</label>
+            <select id="runs-status-filter" name="status">
+                <option value="">All statuses</option>
+                {% for value in ["queued", "running", "succeeded", "degraded", "failed"] %}
+                <option value="{{ value }}" {% if request.query_params.get('status', '') == value %}selected{% endif %}>{{ value }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="filter-field">
+            <label for="runs-trigger-filter">Trigger</label>
+            <select id="runs-trigger-filter" name="trigger">
+                <option value="">All triggers</option>
+                {% for value in ["manual", "scheduled", "telegram_manual", "manual_benchmark"] %}
+                <option value="{{ value }}" {% if request.query_params.get('trigger', '') == value %}selected{% endif %}>{{ value }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="filter-field">
+            <label for="runs-source-filter">Source</label>
+            <select id="runs-source-filter" name="source_id">
+                <option value="">All sources</option>
+                {% for source in sources.values()|sort(attribute='name') %}
+                <option value="{{ source.id }}" {% if request.query_params.get('source_id', '') == source.id|string %}selected{% endif %}>{{ source.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% if search_query %}
+        <input type="hidden" name="q" value="{{ search_query }}">
+        {% endif %}
+        <div class="filter-actions">
+            <button type="submit" class="button secondary">Apply filters</button>
+            <a class="text-link" href="/admin/runs">Clear filters</a>
+        </div>
+    </form>
+</section>
+
 <section class="surface-card surface-table">
     <div class="section-head">
         <div>
@@ -43,7 +82,7 @@
             <h3>Recent Runs</h3>
         </div>
     </div>
-    <table class="data-table">
+    <table class="data-table compact-table">
         <thead>
             <tr>
                 <th>Run</th>
@@ -59,17 +98,24 @@
         </thead>
         <tbody>
             {% for run in runs %}
-            <tr>
-                <td><a class="table-title" href="/admin/runs/{{ run.id }}">#{{ run.id }}</a></td>
+            <tr data-row-href="/admin/runs/{{ run.id }}" tabindex="0">
+                <td>
+                    <a class="table-title" href="/admin/runs/{{ run.id }}">#{{ run.id }}</a>
+                    <div class="table-meta">
+                        <span class="table-chip">{{ run.events_count }} events</span>
+                        <span class="table-chip">{{ run.alerts_sent_count }} alerts</span>
+                    </div>
+                </td>
                 <td>
                     {% if run.source_id in sources %}
                     <a class="table-title" href="/admin/sources/{{ run.source_id }}">{{ sources[run.source_id].name }}</a>
+                    <p class="row-meta">{{ sources[run.source_id].health_status }}</p>
                     {% else %}
                     {{ run.source_id }}
                     {% endif %}
                 </td>
                 <td><a class="badge badge-link badge-{{ run.status }}" href="/admin/runs?status={{ run.status }}">{{ run.status }}</a></td>
-                <td><a class="inline-filter-link" href="/admin/runs?trigger={{ run.trigger_type }}">{{ run.trigger_type }}</a></td>
+                <td><a class="table-chip table-chip-link" href="/admin/runs?trigger={{ run.trigger_type }}">{{ run.trigger_type }}</a></td>
                 <td>{{ fmt_dt_short(run.started_at) }}</td>
                 <td class="mono">{{ fmt_duration(run.duration_ms) }}</td>
                 <td class="mono">{{ run.items_parsed }}</td>
@@ -81,5 +127,46 @@
             {% endfor %}
         </tbody>
     </table>
+</section>
+
+<section class="surface-card bottom-grid">
+    <div class="section-head">
+        <div>
+            <p class="section-kicker">Summary</p>
+            <h3>Run Quality Summary</h3>
+        </div>
+    </div>
+    <div class="signal-grid">
+        <div class="signal-card">
+            <span class="definition-label">Last run</span>
+            {% if run_quality.last_run %}
+            <strong><a class="table-title" href="/admin/runs/{{ run_quality.last_run.id }}">Run #{{ run_quality.last_run.id }}</a></strong>
+            <p>{{ run_quality.last_run.status }} · {{ fmt_dt_short(run_quality.last_run.started_at) }}</p>
+            {% else %}
+            <strong>No runs</strong>
+            <p>Waiting for the first execution.</p>
+            {% endif %}
+        </div>
+        <div class="signal-card">
+            <span class="definition-label">Fastest run</span>
+            {% if run_quality.fastest_run %}
+            <strong><a class="table-title" href="/admin/runs/{{ run_quality.fastest_run.id }}">Run #{{ run_quality.fastest_run.id }}</a></strong>
+            <p>{{ fmt_duration(run_quality.fastest_run.duration_ms) }} · {{ run_quality.fastest_run.items_parsed }} items</p>
+            {% else %}
+            <strong>No runs</strong>
+            <p>No duration signal available yet.</p>
+            {% endif %}
+        </div>
+        <div class="signal-card">
+            <span class="definition-label">Noisiest run</span>
+            {% if run_quality.noisiest_run %}
+            <strong><a class="table-title" href="/admin/runs/{{ run_quality.noisiest_run.id }}">Run #{{ run_quality.noisiest_run.id }}</a></strong>
+            <p>{{ run_quality.noisiest_run.events_count }} events detected</p>
+            {% else %}
+            <strong>No runs</strong>
+            <p>No event activity recorded yet.</p>
+            {% endif %}
+        </div>
+    </div>
 </section>
 {% endblock %}

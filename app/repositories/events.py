@@ -5,6 +5,8 @@ from sqlalchemy import desc, select
 from sqlalchemy.orm import Session
 
 from app.models.event import DetectedEvent
+from app.models.source import Source
+from app.repositories.query_filters import text_search_clause
 
 
 class EventRepository:
@@ -25,6 +27,48 @@ class EventRepository:
     def list_recent(self, limit: int = 25) -> Sequence[DetectedEvent]:
         statement = select(DetectedEvent).order_by(desc(DetectedEvent.created_at)).limit(limit)
         return list(self.session.scalars(statement))
+
+    def list_for_admin(
+        self,
+        *,
+        limit: int | None = 40,
+        run_id: int | None = None,
+        source_id: int | None = None,
+        item_id: int | None = None,
+        severity: str | None = None,
+        event_type: str | None = None,
+        suppressed: bool | None = None,
+        search_query: str | None = None,
+    ) -> Sequence[DetectedEvent]:
+        statement = select(DetectedEvent).outerjoin(Source, Source.id == DetectedEvent.source_id)
+        if run_id is not None:
+            statement = statement.where(DetectedEvent.run_id == run_id)
+        if source_id is not None:
+            statement = statement.where(DetectedEvent.source_id == source_id)
+        if item_id is not None:
+            statement = statement.where(DetectedEvent.item_id == item_id)
+        if severity:
+            statement = statement.where(DetectedEvent.severity == severity)
+        if event_type:
+            statement = statement.where(DetectedEvent.event_type == event_type)
+        if suppressed is not None:
+            statement = statement.where(DetectedEvent.is_suppressed.is_(suppressed))
+        if search_query:
+            statement = statement.where(
+                text_search_clause(
+                    search_query,
+                    [
+                        DetectedEvent.event_type,
+                        DetectedEvent.severity,
+                        DetectedEvent.summary_text,
+                        Source.name,
+                    ],
+                )
+            )
+        statement = statement.order_by(desc(DetectedEvent.created_at))
+        if limit is not None:
+            statement = statement.limit(limit)
+        return list(self.session.scalars(statement).unique())
 
     def list_by_run(self, run_id: int) -> Sequence[DetectedEvent]:
         statement = (

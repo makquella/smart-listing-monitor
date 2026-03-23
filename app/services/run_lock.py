@@ -7,9 +7,9 @@ class SourceRunLockManager:
     """Single-process per-source locking for the MVP.
 
     This lock only coordinates runs inside one Python process. It is
-    intentionally sufficient for the current single-process demo, but it
-    does not protect against duplicate runs across multiple app workers
-    or multiple hosts.
+    intentionally sufficient for the current single-process deployment
+    mode, but it does not protect against duplicate runs across multiple
+    app workers or multiple hosts.
     """
 
     def __init__(self) -> None:

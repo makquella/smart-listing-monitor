@@ -118,5 +118,30 @@
         {% endif %}
         {% block content %}{% endblock %}
     </main>
+    <script>
+        document.addEventListener("click", (event) => {
+            const interactive = event.target.closest("a, button, input, select, textarea, label, summary, details, form");
+            if (interactive) {
+                return;
+            }
+            const row = event.target.closest("[data-row-href]");
+            if (!row) {
+                return;
+            }
+            window.location.href = row.dataset.rowHref;
+        });
+
+        document.addEventListener("keydown", (event) => {
+            if (event.key !== "Enter" && event.key !== " ") {
+                return;
+            }
+            const row = event.target.closest("[data-row-href]");
+            if (!row) {
+                return;
+            }
+            event.preventDefault();
+            window.location.href = row.dataset.rowHref;
+        });
+    </script>
 </body>
 </html>

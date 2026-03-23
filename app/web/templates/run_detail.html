@@ -98,7 +98,7 @@
 </section>
 {% endif %}
 
-<section class="detail-layout">
+<section class="detail-layout run-detail-layout">
     <article class="primary-column" id="run-findings">
         <div class="section-head">
             <div>
@@ -109,12 +109,12 @@
         </div>
         <div class="finding-stack">
             {% for event in events %}
-            <div class="finding-card">
-                <div class="finding-head">
-                    <div>
-                        <p class="row-meta"><a class="inline-filter-link" href="/admin/runs/{{ run.id }}?event_type={{ event.event_type }}#run-findings">{{ event.event_type|replace('_', ' ') }}</a></p>
-                        <h4>{{ event.summary_text }}</h4>
-                    </div>
+                <div class="finding-card">
+                    <div class="finding-head">
+                        <div>
+                            <p class="row-meta"><a class="inline-filter-link" href="/admin/runs/{{ run.id }}?event_type={{ event.event_type }}#run-findings">{{ event.event_type|replace('_', ' ') }}</a></p>
+                            <h4>{{ event.summary_text }}</h4>
+                        </div>
                     <div class="stack-inline">
                     {% if event.is_suppressed %}
                     <a class="badge badge-link badge-muted" href="/admin/runs/{{ run.id }}?suppressed=yes#run-findings">suppressed</a>
@@ -126,11 +126,11 @@
                 <div class="value-grid">
                     <div class="value-box">
                         <span class="value-label">Previous</span>
-                        <p>{{ event.old_value_json or 'n/a' }}</p>
+                        <p class="summary-line-clamp">{{ event.old_value_json or 'n/a' }}</p>
                     </div>
                     <div class="value-box current">
                         <span class="value-label">Current</span>
-                        <p>{{ event.new_value_json or 'n/a' }}</p>
+                        <p class="summary-line-clamp">{{ event.new_value_json or 'n/a' }}</p>
                     </div>
                 </div>
                 {% endif %}
@@ -197,12 +197,12 @@
                 </div>
             </div>
             <div class="notification-stack">
-            {% for notification in notifications %}
+            {% for notification in notifications[:4] %}
             <div class="notification-card">
                 <div class="finding-head">
                     <div>
                         <p class="row-meta"><a class="inline-filter-link" href="/admin/runs/{{ run.id }}?notification_type={{ notification.notification_type }}#notification-log">{{ notification.notification_type }}</a></p>
-                        <h4>{{ notification.payload_preview or 'Notification record' }}</h4>
+                        <h4 class="summary-line-clamp">{{ notification.payload_preview or 'Notification record' }}</h4>
                     </div>
                     <a class="badge badge-link badge-{{ notification.status }}" href="/admin/runs/{{ run.id }}?notification_status={{ notification.status }}#notification-log">{{ notification.status }}</a>
                 </div>
@@ -226,9 +226,10 @@
                     <p class="section-kicker">Telegram-first</p>
                     <h3>Monitor Deliveries</h3>
                 </div>
+                <a class="section-action" href="/admin/deliveries?run_id={{ run.id }}">Open all deliveries</a>
             </div>
             <div class="notification-stack">
-            {% for delivery in monitor_deliveries %}
+            {% for delivery in monitor_deliveries_preview %}
             {% set profile = monitor_profiles.get(delivery.monitor_profile_id) %}
             {% set chat = delivery_chats.get(delivery.telegram_chat_id) %}
             <div class="notification-card">
@@ -238,7 +239,7 @@
                             <a class="inline-filter-link" href="/admin/runs/{{ run.id }}?delivery_type={{ delivery.delivery_type }}#monitor-deliveries">{{ delivery.delivery_type }}</a>
                             {% if profile %} · <a class="inline-filter-link" href="/admin/monitors/{{ profile.id }}">{{ profile.name }}</a>{% endif %}
                         </p>
-                        <h4>{{ delivery.message_preview or 'Monitor delivery record' }}</h4>
+                        <h4 class="summary-line-clamp">{{ delivery.message_preview or 'Monitor delivery record' }}</h4>
                     </div>
                     <a class="badge badge-link badge-{{ delivery.status }}" href="/admin/runs/{{ run.id }}?delivery_status={{ delivery.status }}#monitor-deliveries">{{ delivery.status }}</a>
                 </div>

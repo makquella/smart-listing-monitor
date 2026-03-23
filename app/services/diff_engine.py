@@ -14,12 +14,14 @@ class DiffEngine:
         old_value = {
             "title": existing.title,
             "price_amount": existing.price_amount,
+            "currency": existing.currency,
             "availability_status": existing.availability_status,
             "rating": existing.rating,
         }
         new_value = {
             "title": normalized.title,
             "price_amount": normalized.price_amount,
+            "currency": normalized.currency,
             "availability_status": normalized.availability_status,
             "rating": normalized.rating,
         }
@@ -50,7 +52,8 @@ class DiffEngine:
             direction = "down" if deltas["price_delta"] < 0 else "up"
             summary = (
                 f'Price changed for "{normalized.title}" '
-                f"from {self._fmt_price(existing.price_amount)} to {self._fmt_price(normalized.price_amount)} "
+                f"from {self._fmt_price(existing.price_amount, existing.currency)} "
+                f"to {self._fmt_price(normalized.price_amount, normalized.currency)} "
                 f"({direction} {abs(deltas['price_delta_percent']):.1f}%)"
             )
             return EventDraft(
@@ -100,11 +103,15 @@ class DiffEngine:
             new_value={
                 "title": normalized.title,
                 "price_amount": normalized.price_amount,
+                "currency": normalized.currency,
                 "availability_status": normalized.availability_status,
                 "rating": normalized.rating,
             },
             changed_fields=["title", "price_amount", "availability_status", "rating"],
-            summary_text=f'New item detected: "{normalized.title}" at {self._fmt_price(normalized.price_amount)}',
+            summary_text=(
+                f'New item detected: "{normalized.title}" '
+                f"at {self._fmt_price(normalized.price_amount, normalized.currency)}"
+            ),
         )
 
     def removed_item_event(self, item: Item) -> EventDraft:
@@ -117,6 +124,7 @@ class DiffEngine:
             old_value={
                 "title": item.title,
                 "price_amount": item.price_amount,
+                "currency": item.currency,
                 "availability_status": item.availability_status,
                 "rating": item.rating,
             },
@@ -150,7 +158,8 @@ class DiffEngine:
         return base
 
     @staticmethod
-    def _fmt_price(price: float | None) -> str:
+    def _fmt_price(price: float | None, currency: str | None) -> str:
         if price is None:
             return "n/a"
-        return f"GBP {price:.2f}"
+        prefix = f"{currency} " if currency else ""
+        return f"{prefix}{price:.2f}"

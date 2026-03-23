@@ -38,6 +38,63 @@
     </a>
 </section>
 
+<section class="surface-card filter-toolbar">
+    <form method="get" action="/admin/deliveries" class="filter-form">
+        <div class="filter-field">
+            <label for="delivery-type-filter">Type</label>
+            <select id="delivery-type-filter" name="delivery_type">
+                <option value="">All types</option>
+                {% for value in ["instant", "digest"] %}
+                <option value="{{ value }}" {% if request.query_params.get('delivery_type', '') == value %}selected{% endif %}>{{ value }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="filter-field">
+            <label for="delivery-status-filter">Status</label>
+            <select id="delivery-status-filter" name="status">
+                <option value="">All statuses</option>
+                {% for value in ["sent", "failed", "suppressed", "queued"] %}
+                <option value="{{ value }}" {% if request.query_params.get('status', '') == value %}selected{% endif %}>{{ value }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="filter-field">
+            <label for="delivery-source-filter">Source</label>
+            <select id="delivery-source-filter" name="source_id">
+                <option value="">All sources</option>
+                {% for source in delivery_filters.sources %}
+                <option value="{{ source.id }}" {% if request.query_params.get('source_id', '') == source.id|string %}selected{% endif %}>{{ source.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="filter-field">
+            <label for="delivery-monitor-filter">Monitor</label>
+            <select id="delivery-monitor-filter" name="monitor_id">
+                <option value="">All monitors</option>
+                {% for profile in delivery_filters.profiles %}
+                <option value="{{ profile.id }}" {% if request.query_params.get('monitor_id', '') == profile.id|string %}selected{% endif %}>{{ profile.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="filter-field">
+            <label for="delivery-chat-filter">Chat</label>
+            <select id="delivery-chat-filter" name="chat_id">
+                <option value="">All chats</option>
+                {% for chat in delivery_filters.chats %}
+                <option value="{{ chat.id }}" {% if request.query_params.get('chat_id', '') == chat.id|string %}selected{% endif %}>{{ chat.title if chat.title else chat.telegram_chat_id }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% if search_query %}
+        <input type="hidden" name="q" value="{{ search_query }}">
+        {% endif %}
+        <div class="filter-actions">
+            <button type="submit" class="button secondary">Apply filters</button>
+            <a class="text-link" href="/admin/deliveries">Clear filters</a>
+        </div>
+    </form>
+</section>
+
 <section class="surface-card surface-table">
     <div class="section-head">
         <div>
@@ -45,46 +102,58 @@
             <h3>Recent Telegram Deliveries</h3>
         </div>
     </div>
-    <table class="data-table">
+    <table class="data-table compact-table">
         <thead>
             <tr>
                 <th>Monitor</th>
-                <th>Chat</th>
                 <th>Type</th>
                 <th>Status</th>
-                <th>Preview</th>
                 <th>Created</th>
+                <th>Preview</th>
+                <th>Actions</th>
             </tr>
         </thead>
         <tbody>
             {% for delivery in deliveries %}
             {% set profile = profiles.get(delivery.monitor_profile_id) %}
             {% set chat = chats.get(delivery.telegram_chat_id) %}
-            <tr>
+            <tr {% if profile %}data-row-href="/admin/monitors/{{ profile.id }}"{% endif %} tabindex="0">
                 <td>
                     {% if profile %}
                     <a class="table-title" href="/admin/monitors/{{ profile.id }}">{{ profile.name }}</a>
-                    <p class="row-meta">
-                        <a class="inline-filter-link" href="/admin/deliveries?monitor_id={{ profile.id }}">{{ profile.priority_mode }}</a>
-                    </p>
+                    <div class="table-meta">
+                        <a class="table-chip table-chip-link" href="/admin/deliveries?monitor_id={{ profile.id }}">{{ profile.priority_mode }}</a>
+                        {% if profile.source_id in sources %}
+                        <a class="table-chip table-chip-link" href="/admin/deliveries?source_id={{ profile.source_id }}">{{ sources[profile.source_id].name }}</a>
+                        {% endif %}
+                    </div>
+                    <p class="row-meta">{{ chat.title if chat and chat.title else 'private chat' }}</p>
                     {% else %}
                     <span class="table-title">Unknown monitor</span>
                     {% endif %}
                 </td>
-                <td>
-                    <div>{{ chat.title if chat and chat.title else 'private chat' }}</div>
-                    <p class="row-meta">
-                        {% if chat %}
-                        <a class="inline-filter-link" href="/admin/deliveries?chat_id={{ chat.id }}">{{ chat.chat_type }}</a>
-                        {% else %}
-                        unknown
-                        {% endif %}
-                    </p>
-                </td>
                 <td><a class="table-chip table-chip-link" href="/admin/deliveries?delivery_type={{ delivery.delivery_type }}">{{ delivery.delivery_type }}</a></td>
                 <td><a class="badge badge-link badge-{{ delivery.status }}" href="/admin/deliveries?status={{ delivery.status }}">{{ delivery.status }}</a></td>
-                <td>{{ delivery.message_preview or 'n/a' }}</td>
                 <td>{{ fmt_dt_short(delivery.created_at) }}</td>
+                <td class="summary-cell">
+                    <div class="summary-line-clamp">{{ delivery.message_preview or 'n/a' }}</div>
+                    {% if delivery.message_preview and delivery.message_preview|length > 180 %}
+                    <details class="preview-details">
+                        <summary>View full preview</summary>
+                        <div class="code-block-inline">{{ delivery.message_preview }}</div>
+                    </details>
+                    {% endif %}
+                </td>
+                <td>
+                    <div class="stack-inline">
+                        {% if profile %}
+                        <a class="text-link" href="/admin/monitors/{{ profile.id }}">Open monitor</a>
+                        {% endif %}
+                        {% if delivery.monitoring_run_id %}
+                        <a class="text-link" href="/admin/runs/{{ delivery.monitoring_run_id }}">Open run</a>
+                        {% endif %}
+                    </div>
+                </td>
             </tr>
             {% else %}
             <tr><td colspan="6"><div class="empty-state">No Telegram-first deliveries have been logged yet.</div></td></tr>

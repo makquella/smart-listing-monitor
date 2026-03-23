@@ -101,6 +101,39 @@
     </article>
 
     <aside class="sidebar-stack">
+        <article class="surface-card">
+            <div class="section-head compact">
+                <div>
+                    <p class="section-kicker">Execution Snapshot</p>
+                    <h3>Last Run Outcome</h3>
+                </div>
+                {% if latest_run_outcome %}
+                <span class="badge badge-{{ latest_run_outcome.status }}">{{ latest_run_outcome.status }}</span>
+                {% endif %}
+            </div>
+            {% if latest_run_outcome %}
+            <div class="signal-grid">
+                <div class="signal-card">
+                    <span class="definition-label">Completeness</span>
+                    <strong>{{ fmt_ratio(latest_run_outcome.completeness) }}</strong>
+                    <p>Parse completeness recorded for the latest run.</p>
+                </div>
+                <div class="signal-card">
+                    <span class="definition-label">Alerts</span>
+                    <strong>{{ latest_run_outcome.alerts }}</strong>
+                    <p>Source-level alert records emitted by the run.</p>
+                </div>
+                <div class="signal-card">
+                    <span class="definition-label">Deliveries</span>
+                    <strong>{{ latest_run_outcome.deliveries }}</strong>
+                    <p>Per-monitor Telegram deliveries tied to the run.</p>
+                </div>
+            </div>
+            {% else %}
+            <div class="empty-state inline">No completed run snapshot yet.</div>
+            {% endif %}
+        </article>
+
         <article class="surface-card" id="source-settings">
             <div class="section-head compact">
                 <div>
@@ -114,15 +147,24 @@
             <form method="post" action="/admin/sources/{{ source.id }}/settings" class="settings-form">
                 <fieldset class="settings-fieldset" {% if admin_read_only_mode %}disabled{% endif %}>
                 <label>
-                    Interval minutes
+                    <span class="settings-copy">
+                        <span>Interval minutes</span>
+                        <span class="setting-note">How often the scheduler should queue this source.</span>
+                    </span>
                     <input type="number" name="schedule_interval_minutes" min="5" value="{{ source.schedule_interval_minutes }}">
                 </label>
                 <label class="toggle-row">
-                    <span>Schedule enabled</span>
+                    <span class="settings-copy">
+                        <span>Schedule enabled</span>
+                        <span class="setting-note">Allow automatic interval-based execution.</span>
+                    </span>
                     <input type="checkbox" name="schedule_enabled" {% if source.schedule_enabled %}checked{% endif %}>
                 </label>
                 <label class="toggle-row">
-                    <span>Source active</span>
+                    <span class="settings-copy">
+                        <span>Source active</span>
+                        <span class="setting-note">Include this source in monitoring and manual execution.</span>
+                    </span>
                     <input type="checkbox" name="is_active" {% if source.is_active %}checked{% endif %}>
                 </label>
                 <button type="submit" class="button">Save settings</button>
@@ -168,7 +210,7 @@
                 <p class="section-kicker">Findings</p>
                 <h3>Latest Findings</h3>
             </div>
-            <a class="table-chip table-chip-link" href="/admin/findings?source_id={{ source.id }}">{{ events|length }} recent</a>
+            <a class="section-action" href="/admin/findings?source_id={{ source.id }}">Open all findings for source</a>
         </div>
         <div class="finding-stack">
         {% for event in events %}

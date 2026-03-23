@@ -10,3 +10,5 @@ data/*.db
 data/*.sqlite
 data/*.sqlite3
 stitch_exports/
+.playwright-cli/
+output/

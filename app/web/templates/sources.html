@@ -69,13 +69,29 @@
         </thead>
         <tbody>
             {% for source in sources %}
-            <tr>
+            {% set activity = source_activity.get(source.id) %}
+            <tr data-row-href="/admin/sources/{{ source.id }}" tabindex="0">
                 <td>
                     <a class="table-title" href="/admin/sources/{{ source.id }}">{{ source.name }}</a>
                     <p class="row-meta">{{ source.parser_key }} · {{ source.slug }}</p>
+                    <div class="table-meta">
+                        {% if activity and activity.last_run %}
+                        <span class="table-chip">last run {{ fmt_dt_short(activity.last_run.started_at) }}</span>
+                        {% endif %}
+                        <span class="table-chip">{{ activity.recent_findings if activity else 0 }} findings</span>
+                    </div>
                 </td>
                 <td><a class="endpoint-pill endpoint-pill-link" href="{{ source.start_url }}" target="_blank" rel="noreferrer">{{ source.start_url }}</a></td>
-                <td class="mono">Every {{ source.schedule_interval_minutes }}m</td>
+                <td>
+                    <div class="mono">Every {{ source.schedule_interval_minutes }}m</div>
+                    <p class="row-meta">
+                        {% if activity and activity.last_run %}
+                        Events last run: {{ activity.events_last_run }}
+                        {% else %}
+                        Waiting for first run
+                        {% endif %}
+                    </p>
+                </td>
                 <td>{{ fmt_dt_short(source.last_successful_run_at) }}</td>
                 <td>
                     <div class="stack-inline">
@@ -102,5 +118,47 @@
             {% endfor %}
         </tbody>
     </table>
+</section>
+
+<section class="dashboard-grid bottom-grid">
+    <article class="surface-card primary-column">
+        <div class="section-head">
+            <div>
+                <p class="section-kicker">Activity</p>
+                <h3>Recent Source Activity</h3>
+            </div>
+        </div>
+        <div class="activity-list">
+            {% for entry in source_activity_feed %}
+            {% set source = sources|selectattr('id', 'equalto', entry.source_id)|list|first %}
+            <a class="activity-item activity-item-link" href="{{ entry.href }}">
+                <div>
+                    <p class="row-meta">{{ source.name if source else ('Source #' ~ entry.source_id) }} · {{ entry.kind }}</p>
+                    <div class="activity-title">{{ entry.title }}</div>
+                </div>
+                <div class="activity-meta">
+                    <span class="badge badge-{{ entry.meta }}">{{ entry.meta }}</span>
+                    <span>{{ fmt_dt_short(entry.created_at) }}</span>
+                </div>
+            </a>
+            {% else %}
+            <div class="empty-state inline">No recent source activity has been logged yet.</div>
+            {% endfor %}
+        </div>
+    </article>
+
+    <article class="surface-card">
+        <div class="section-head compact">
+            <div>
+                <p class="section-kicker">Coverage</p>
+                <h3>Source Inventory Notes</h3>
+            </div>
+        </div>
+        <div class="definition-list">
+            <div class="definition-item"><span class="definition-label">Healthy</span><div class="definition-value">{{ health_counts.healthy }} sources in stable state</div></div>
+            <div class="definition-item"><span class="definition-label">Needs review</span><div class="definition-value">{{ health_counts.degraded + health_counts.failing }} sources require attention</div></div>
+            <div class="definition-item"><span class="definition-label">Paused</span><div class="definition-value">{{ health_counts.paused }} sources are currently paused</div></div>
+        </div>
+    </article>
 </section>
 {% endblock %}

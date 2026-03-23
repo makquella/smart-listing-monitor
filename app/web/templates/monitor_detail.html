@@ -24,30 +24,50 @@
     </div>
     <div class="page-actions">
         <a class="button secondary" href="/admin/monitors">Back to monitors</a>
+        {% if source %}
+        <a class="button secondary" href="/admin/sources/{{ source.id }}">Open source</a>
+        {% endif %}
         <a class="button" href="/admin/deliveries">Open deliveries</a>
     </div>
 </section>
 
 <section class="metrics-grid">
-    <article class="metric-card">
+    <article class="metric-card emphasis">
         <p class="metric-label">Matches</p>
         <div class="metric-row"><h3 class="metric-value">{{ match_stats.total }}</h3><span class="metric-chip neutral">{{ match_stats.high }} high</span></div>
+        <p class="metric-support">{{ match_stats.runs }} runs contributed to this monitor's current history.</p>
     </article>
     <article class="metric-card">
-        <p class="metric-label">Deliveries</p>
-        <div class="metric-row"><h3 class="metric-value">{{ match_stats.deliveries }}</h3><span class="metric-chip healthy">logged</span></div>
+        <p class="metric-label">Last Match</p>
+        <div class="metric-row">
+            <h3 class="metric-value metric-value-small">{{ fmt_dt_short(last_match.created_at) if last_match else 'No data' }}</h3>
+            {% if last_match %}
+            <span class="metric-chip {{ 'error' if last_match.priority == 'high' else 'warning' if last_match.priority == 'medium' else 'neutral' }}">{{ last_match.priority }}</span>
+            {% endif %}
+        </div>
+        <p class="metric-support">{{ activity.matches_24h }} in the last 24h · {{ activity.matches_7d }} in the last 7d.</p>
     </article>
     <article class="metric-card">
-        <p class="metric-label">Instant Alerts</p>
-        <div class="metric-row"><h3 class="metric-value">{{ 'on' if profile.instant_alerts_enabled else 'off' }}</h3></div>
+        <p class="metric-label">Last Delivery</p>
+        <div class="metric-row">
+            <h3 class="metric-value metric-value-small">{{ fmt_dt_short(last_delivery.created_at) if last_delivery else 'No data' }}</h3>
+            {% if last_delivery %}
+            <span class="metric-chip {{ 'healthy' if last_delivery.status == 'sent' else 'error' if last_delivery.status == 'failed' else 'neutral' }}">{{ last_delivery.status }}</span>
+            {% endif %}
+        </div>
+        <p class="metric-support">{{ activity.deliveries_24h }} in the last 24h · {{ activity.deliveries_7d }} in the last 7d.</p>
     </article>
-    <article class="metric-card">
-        <p class="metric-label">Digest</p>
-        <div class="metric-row"><h3 class="metric-value">{{ 'on' if profile.digest_enabled else 'off' }}</h3></div>
+    <article class="metric-card emphasis">
+        <p class="metric-label">Delivery Posture</p>
+        <div class="metric-row">
+            <h3 class="metric-value metric-value-small">{{ 'Instant on' if profile.instant_alerts_enabled else 'Instant off' }}</h3>
+            <span class="metric-chip {{ 'healthy' if profile.digest_enabled else 'neutral' }}">{{ 'Digest on' if profile.digest_enabled else 'Digest off' }}</span>
+        </div>
+        <p class="metric-support">{{ activity.failed_deliveries_7d }} failed deliveries recorded in the last 7d.</p>
     </article>
 </section>
 
-<section class="detail-layout">
+<section class="detail-layout monitor-detail-layout">
     <article class="surface-card primary-column">
         <div class="section-head">
             <div>
@@ -60,7 +80,7 @@
             {% for match in matches %}
             {% set event = events.get(match.detected_event_id) %}
             {% set run = runs.get(match.monitoring_run_id) %}
-            <div class="finding-card">
+            <div class="finding-card compact-card">
                 <div class="finding-head">
                     <div>
                         <p class="row-meta">{{ event.event_type|replace('_', ' ') if event else 'event' }}</p>
@@ -68,7 +88,7 @@
                     </div>
                     <span class="badge badge-{{ match.priority }}">{{ match.priority }}</span>
                 </div>
-                <p>{{ match.match_reason }}</p>
+                <p class="summary-line-clamp">{{ match.match_reason }}</p>
                 <div class="finding-foot">
                     <span>{{ fmt_dt_short(match.created_at) }}</span>
                     {% if run %}
@@ -83,6 +103,20 @@
     </article>
 
     <aside class="sidebar-stack sticky-column">
+        <article class="surface-card">
+            <div class="section-head compact">
+                <div>
+                    <p class="section-kicker">Activity</p>
+                    <h3>Monitor Snapshot</h3>
+                </div>
+            </div>
+            <div class="definition-list">
+                <div class="definition-item"><span class="definition-label">Last triggered</span><div class="definition-value">{{ fmt_dt(last_match.created_at) if last_match else 'No recorded match yet' }}</div></div>
+                <div class="definition-item"><span class="definition-label">Last delivery status</span><div class="definition-value">{{ last_delivery.status if last_delivery else 'No delivery yet' }}</div></div>
+                <div class="definition-item"><span class="definition-label">Recent activity</span><div class="definition-value">{{ activity.matches_7d }} matches · {{ activity.deliveries_7d }} deliveries in 7d</div></div>
+            </div>
+        </article>
+
         <article class="surface-card">
             <div class="section-head compact">
                 <div>
@@ -114,35 +148,70 @@
     </aside>
 </section>
 
-<section class="surface-card">
-    <div class="section-head">
-        <div>
-            <p class="section-kicker">Delivery</p>
-            <h3>Recent Notification Deliveries</h3>
+<section class="dashboard-grid bottom-grid">
+    <article class="surface-card surface-table primary-column">
+        <div class="section-head">
+            <div>
+                <p class="section-kicker">Delivery</p>
+                <h3>Recent Notification Deliveries</h3>
+            </div>
+            <span class="table-chip">{{ deliveries|length }} shown</span>
         </div>
-        <span class="table-chip">{{ deliveries|length }} shown</span>
-    </div>
-    <table class="data-table">
-        <thead>
-            <tr>
-                <th>Type</th>
-                <th>Status</th>
-                <th>Preview</th>
-                <th>Created</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for delivery in deliveries %}
-            <tr>
-                <td><a class="table-chip table-chip-link" href="/admin/monitors/{{ profile.id }}?delivery_type={{ delivery.delivery_type }}">{{ delivery.delivery_type }}</a></td>
-                <td><a class="badge badge-link badge-{{ delivery.status }}" href="/admin/monitors/{{ profile.id }}?delivery_status={{ delivery.status }}">{{ delivery.status }}</a></td>
-                <td>{{ delivery.message_preview or 'n/a' }}</td>
-                <td>{{ fmt_dt_short(delivery.created_at) }}</td>
-            </tr>
+        <table class="data-table compact-table">
+            <thead>
+                <tr>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>Preview</th>
+                    <th>Created</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for delivery in deliveries[:12] %}
+                <tr>
+                    <td><a class="table-chip table-chip-link" href="/admin/monitors/{{ profile.id }}?delivery_type={{ delivery.delivery_type }}">{{ delivery.delivery_type }}</a></td>
+                    <td><a class="badge badge-link badge-{{ delivery.status }}" href="/admin/monitors/{{ profile.id }}?delivery_status={{ delivery.status }}">{{ delivery.status }}</a></td>
+                    <td class="summary-cell">
+                        <div class="summary-line-clamp">{{ delivery.message_preview or 'n/a' }}</div>
+                        {% if delivery.message_preview and delivery.message_preview|length > 180 %}
+                        <details class="preview-details">
+                            <summary>View full preview</summary>
+                            <div class="code-block-inline">{{ delivery.message_preview }}</div>
+                        </details>
+                        {% endif %}
+                    </td>
+                    <td>{{ fmt_dt_short(delivery.created_at) }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4"><div class="empty-state">No deliveries recorded yet.</div></td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </article>
+
+    <article class="surface-card">
+        <div class="section-head compact">
+            <div>
+                <p class="section-kicker">Timeline</p>
+                <h3>Recent Monitor Activity</h3>
+            </div>
+        </div>
+        <div class="activity-list">
+            {% for entry in activity_feed[:5] %}
+            <a class="activity-item activity-item-link" href="{{ entry.href }}">
+                <div>
+                    <p class="row-meta">{{ entry.kind }}</p>
+                    <div class="activity-title summary-line-clamp compact">{{ entry.title }}</div>
+                </div>
+                <div class="activity-meta">
+                    <span class="badge badge-{{ entry.meta }}">{{ entry.meta }}</span>
+                    <span>{{ fmt_dt_short(entry.created_at) }}</span>
+                </div>
+            </a>
             {% else %}
-            <tr><td colspan="4"><div class="empty-state">No deliveries recorded yet.</div></td></tr>
+            <div class="empty-state inline">No activity has been recorded for this monitor yet.</div>
             {% endfor %}
-        </tbody>
-    </table>
+        </div>
+    </article>
 </section>
 {% endblock %}

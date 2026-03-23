@@ -4,6 +4,7 @@ Parset Monitor is a portfolio-ready MVP for intelligent product and listing moni
 
 It is intentionally scoped like a real product:
 
+- curated supported adapters instead of arbitrary URL onboarding
 - one shared source run instead of re-parsing per user
 - deterministic change detection before AI
 - Telegram as both delivery layer and control layer
@@ -45,6 +46,13 @@ flowchart LR
     J --> K
 ```
 
+## Supported Sources
+
+| Source | Parser key | Shape | Monitored fields | Notes |
+| --- | --- | --- | --- | --- |
+| Books to Scrape | `books_toscrape` | Paginated book catalog | price, availability, rating, category | Safe portfolio demo source with category enrichment from detail pages |
+| Web Scraper Phones | `webscraper_static_ecommerce` | E-commerce catalog with nested section pages | price, rating, review count, category/subcategory, option metadata | Different markup and USD pricing, proving the platform is adapter-driven rather than book-specific |
+
 ## Telegram Output Examples
 
 Instant alert example:
@@ -75,9 +83,10 @@ The Books to Scrape monitoring run succeeded, parsing 1,000 items. Three new lis
 
 ## Mini Case Study
 
-This repo already demonstrates a realistic end-to-end monitoring story on the seeded `Books to Scrape` source:
+This repo now demonstrates a realistic multi-source monitoring story:
 
 - cold-start run parsed `1,000` items and created `1,000` structured `new_item` events
+- a second curated adapter tracks a different e-commerce catalog shape without changing the core `Item -> Snapshot -> Event -> MonitorProfile` pipeline
 - Gemini generated a run summary instead of the AI layer being treated like a chatbot gimmick
 - Telegram monitor profiles matched a filtered subset of findings and produced both instant alerts and a grouped digest
 - cached category hydration reduced the warm benchmark run from roughly `147s` to `8.6s`
@@ -95,6 +104,7 @@ That mix of parser logic, state, filtering, delivery, and operator UX is the mai
 - Offline HTML fixture coverage for parser regressions without relying on the live site
 - Smoke coverage for admin pages and core API wiring via `TestClient`
 - CI, linting, formatting, and Alembic migrations that make the MVP feel like a real backend product
+- Multiple supported adapters with offline HTML fixtures, proving the platform is intentionally extensible
 
 ## Stack
 
@@ -124,6 +134,12 @@ If you want the Telegram bot control plane, set `TELEGRAM_BOT_CONTROL_ENABLED=tr
 
 For the public demo and any local production-like run, keep the app single-process. Do not run it with multiple Uvicorn workers.
 
+For a production-like demo start, use the dedicated single-process entry point:
+
+```bash
+./scripts/run_single_process.sh
+```
+
 ## Configuration
 
 Core monitoring behavior is controlled from `.env`:
@@ -134,6 +150,7 @@ Core monitoring behavior is controlled from `.env`:
 - `MIN_PERCENT_PRICE_DELTA=2.0`
 - `DEGRADED_PARSE_RATIO_THRESHOLD=0.70`
 - `PARSER_DETAIL_FETCH_WORKERS=12`
+- `SEED_ADDITIONAL_DEMO_SOURCES=true`
 
 Operational integrations are optional:
 
@@ -149,6 +166,8 @@ Operational integrations are optional:
 - `GEMINI_API_KEY`
 - `GEMINI_MODEL`
 - `ADMIN_READ_ONLY_MODE=false`
+- `RUNTIME_MODE=single_process`
+- `ALLOW_UNSAFE_MULTI_PROCESS_RUNTIME=false`
 
 If Telegram is not configured, notifications are logged as `skipped`. If Gemini is not configured, the app stores a deterministic fallback summary instead of failing the run.
 
@@ -188,8 +207,30 @@ If you already have a local `data/app.db` from the pre-Alembic version of the pr
 
 - `SourceRunLockManager` is intentionally in-memory and single-process.
 - Background admin runs, scheduler jobs, and Telegram-triggered runs are coordinated correctly only inside one app process.
+- The FastAPI lifespan currently owns three runtime actors inside that same process: the scheduler, the in-process run dispatcher, and the Telegram bot controller.
 - For the public demo, run a single Uvicorn process and do not use `--workers > 1`.
+- The app now refuses common multi-worker configurations detected through `UVICORN_WORKERS`, `WEB_CONCURRENCY`, or `GUNICORN_CMD_ARGS`, unless `ALLOW_UNSAFE_MULTI_PROCESS_RUNTIME=true` is set explicitly for experiments.
+- Do not run multiple app instances, duplicate schedulers, or separate web processes without a shared coordination layer.
 - If the project later moves to multi-worker or multi-host deployment, the lock should move to a shared coordination layer such as the database or Redis.
+
+## Runtime Roadmap
+
+The current runtime mode is an intentional MVP deployment choice, not an accident:
+
+- one web process
+- one scheduler lifecycle
+- one Telegram bot lifecycle
+- one in-process background dispatcher
+- one in-memory per-source lock manager
+
+The next execution milestone is to separate `enqueue` from `execute`:
+
+1. Admin, scheduler, and Telegram flows create a queued `MonitoringRun` in the database.
+2. A dedicated worker process claims queued runs.
+3. Source locking moves from in-memory to a shared lock, such as a DB-backed lock or Postgres advisory lock.
+4. The scheduler becomes enqueue-only, while the worker becomes the only run executor.
+
+That path keeps the current codebase practical for a portfolio MVP while making the future multi-worker story explicit and credible.
 
 ## Telegram-First Layer
 
@@ -276,5 +317,6 @@ The project keeps the local quality stack intentionally small:
 ## Notes
 
 - The first source adapter targets `Books to Scrape`, which is safe and stable for portfolio demos.
+- A second curated source, `Web Scraper Phones`, is seeded by default so the UI and bot flows feel multi-source rather than book-only.
 - The architecture is ready for additional supported adapters without pretending to support any arbitrary site from day one.
 - This MVP is single-process by design, so `SourceRunLockManager` is documented as runtime-only locking rather than a distributed lock system.

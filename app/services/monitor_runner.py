@@ -205,7 +205,10 @@ class MonitorRunner:
         all_items = item_repo.get_by_source(source.id)
         raw_items = list(parse_result.items)
         items_to_enrich = self._hydrate_cached_attributes(
-            source=source, items=raw_items, existing_items=all_items
+            adapter=adapter,
+            source=source,
+            items=raw_items,
+            existing_items=all_items,
         )
         if items_to_enrich:
             adapter.enrich_items(source, items_to_enrich)
@@ -498,6 +501,7 @@ class MonitorRunner:
     def _hydrate_cached_attributes(
         self,
         *,
+        adapter: BaseSourceAdapter,
         source: Source,
         items: list,
         existing_items: dict[str, Any],
@@ -513,7 +517,7 @@ class MonitorRunner:
             )
             for key, value in existing_attributes.items():
                 item.attributes.setdefault(key, value)
-            if not item.attributes.get("category"):
+            if adapter.requires_enrichment(item, existing_attributes):
                 items_to_enrich.append(item)
         return items_to_enrich
 
@@ -521,6 +525,7 @@ class MonitorRunner:
 def build_runner_dependencies(settings: Settings) -> dict[str, Any]:
     from app.core.db import SessionLocal
     from app.parsers.books_toscrape import BooksToScrapeAdapter
+    from app.parsers.webscraper_ecommerce import WebScraperEcommerceAdapter
     from app.services.run_lock import SourceRunLockManager
     from app.services.telegram_notifier import MonitorTelegramNotifier
 
@@ -534,6 +539,7 @@ def build_runner_dependencies(settings: Settings) -> dict[str, Any]:
     )
     parsers = {
         BooksToScrapeAdapter.parser_key: BooksToScrapeAdapter(settings),
+        WebScraperEcommerceAdapter.parser_key: WebScraperEcommerceAdapter(settings),
     }
     return {
         "session_factory": SessionLocal,

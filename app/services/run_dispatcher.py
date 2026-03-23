@@ -8,6 +8,8 @@ logger = logging.getLogger(__name__)
 
 
 class RunDispatcher:
+    """In-process queued run execution for the single-process MVP runtime."""
+
     def __init__(self, runner: MonitorRunner, max_workers: int = 2) -> None:
         self.runner = runner
         self.executor = ThreadPoolExecutor(

@@ -1,16 +1,29 @@
 import json
 import logging
+from dataclasses import dataclass
+from typing import Any
 
 import httpx
 
 from app.core.config import Settings
-from app.core.http import build_request_headers, request_with_retry
+from app.core.http import build_request_headers, request_with_retry, safe_response_json
 from app.models.event import DetectedEvent
 from app.models.run import MonitoringRun
 from app.models.source import Source
 from app.services.types import SummaryResult
 
 logger = logging.getLogger(__name__)
+
+VALID_SEVERITIES = {"high", "medium", "low"}
+
+
+@dataclass(slots=True)
+class GeminiFailure:
+    status: str
+    error_kind: str
+    safe_message: str
+    status_code: int | None = None
+    provider_payload: dict[str, Any] | None = None
 
 
 class GeminiService:
@@ -23,16 +36,29 @@ class GeminiService:
         self, source: Source, run: MonitoringRun, events: list[DetectedEvent]
     ) -> SummaryResult:
         top_events = events[:3]
+        endpoint = self._endpoint()
         if not top_events:
             return SummaryResult(
                 summary_text="No notable changes were detected in this run.",
                 highlights=[],
-                status="skipped",
-                raw_response={},
+                status="skipped_no_events",
+                raw_response=self._skip_meta(
+                    endpoint=endpoint,
+                    error_kind="no_events",
+                    message="No notable events were available for Gemini summarization.",
+                ),
             )
 
         if not self.settings.gemini_api_key:
-            return self._fallback_summary(top_events, status="skipped")
+            return self._fallback_summary(
+                top_events,
+                status="skipped_no_api_key",
+                raw_response=self._skip_meta(
+                    endpoint=endpoint,
+                    error_kind="no_api_key",
+                    message="Gemini API key is not configured; deterministic fallback used.",
+                ),
+            )
 
         prompt_payload = {
             "source": source.name,
@@ -62,11 +88,6 @@ class GeminiService:
                 "responseMimeType": "application/json",
             },
         }
-
-        endpoint = (
-            "https://generativelanguage.googleapis.com/v1beta/models/"
-            f"{self.settings.gemini_model}:generateContent"
-        )
         headers = {
             "x-goog-api-key": self.settings.gemini_api_key,
             "Content-Type": "application/json",
@@ -86,21 +107,42 @@ class GeminiService:
             )
             response.raise_for_status()
             payload = response.json()
-            text = payload["candidates"][0]["content"]["parts"][0]["text"]
+            text = self._extract_response_text(payload)
             parsed = json.loads(text)
-            summary_text = parsed.get("summary_text") or "Run completed with notable changes."
-            highlights = parsed.get("highlights") or []
+            summary_text = self._extract_summary_text(parsed)
+            highlights = self._normalize_highlights(parsed.get("highlights"))
+            if not summary_text and highlights:
+                summary_text = (
+                    f"Run completed with notable changes, led by {highlights[0]['title']}."
+                )
+            if not summary_text:
+                raise ValueError("Gemini response did not include a usable summary_text.")
             return SummaryResult(
                 summary_text=summary_text,
-                highlights=highlights[:3],
+                highlights=highlights,
                 status="generated",
-                raw_response=payload,
+                raw_response=self._success_meta(
+                    endpoint=endpoint, response=response, payload=payload
+                ),
             )
-        except Exception:  # pragma: no cover - network failures are environment-specific
-            logger.exception("Gemini summary generation failed, using fallback summary")
-            return self._fallback_summary(top_events, status="fallback")
+        except Exception as exc:  # pragma: no cover - behavior is tested via monkeypatching
+            failure = self._classify_failure(exc)
+            logger.warning(
+                "Gemini summary generation degraded: status=%s error_kind=%s status_code=%s message=%s",
+                failure.status,
+                failure.error_kind,
+                failure.status_code,
+                failure.safe_message,
+            )
+            return self._fallback_summary(
+                top_events,
+                status=failure.status,
+                raw_response=self._failure_meta(endpoint=endpoint, failure=failure),
+            )
 
-    def _fallback_summary(self, events: list[DetectedEvent], status: str) -> SummaryResult:
+    def _fallback_summary(
+        self, events: list[DetectedEvent], status: str, raw_response: dict[str, Any]
+    ) -> SummaryResult:
         highlights = [
             {
                 "title": event.summary_text,
@@ -116,7 +158,156 @@ class GeminiService:
             summary_text=summary_text,
             highlights=highlights,
             status=status,
-            raw_response={},
+            raw_response=raw_response,
+        )
+
+    def _endpoint(self) -> str:
+        return (
+            "https://generativelanguage.googleapis.com/v1beta/models/"
+            f"{self.settings.gemini_model}:generateContent"
+        )
+
+    def _skip_meta(self, *, endpoint: str, error_kind: str, message: str) -> dict[str, Any]:
+        return {
+            "model": self.settings.gemini_model,
+            "endpoint": endpoint,
+            "error_kind": error_kind,
+            "message": message,
+        }
+
+    def _success_meta(
+        self, *, endpoint: str, response: httpx.Response, payload: dict[str, Any]
+    ) -> dict[str, Any]:
+        return {
+            "model": self.settings.gemini_model,
+            "endpoint": endpoint,
+            "status_code": response.status_code,
+            "provider_response": payload,
+        }
+
+    def _failure_meta(self, *, endpoint: str, failure: GeminiFailure) -> dict[str, Any]:
+        meta: dict[str, Any] = {
+            "model": self.settings.gemini_model,
+            "endpoint": endpoint,
+            "error_kind": failure.error_kind,
+            "message": failure.safe_message,
+        }
+        if failure.status_code is not None:
+            meta["status_code"] = failure.status_code
+        if failure.provider_payload:
+            meta["provider_response"] = failure.provider_payload
+        return meta
+
+    @staticmethod
+    def _extract_response_text(payload: dict[str, Any]) -> str:
+        text = payload["candidates"][0]["content"]["parts"][0]["text"]
+        if not isinstance(text, str) or not text.strip():
+            raise TypeError("Gemini response text was empty or not a string.")
+        return text
+
+    @staticmethod
+    def _extract_summary_text(parsed: dict[str, Any]) -> str:
+        if not isinstance(parsed, dict):
+            raise TypeError("Gemini JSON output must be an object.")
+        summary_text = parsed.get("summary_text") or parsed.get("summary")
+        if summary_text is None:
+            return ""
+        return str(summary_text).strip()
+
+    @staticmethod
+    def _normalize_highlights(payload: Any) -> list[dict[str, str]]:
+        if not isinstance(payload, list):
+            return []
+
+        highlights: list[dict[str, str]] = []
+        for entry in payload[:3]:
+            if not isinstance(entry, dict):
+                continue
+            title = str(entry.get("title") or "").strip()
+            if not title:
+                continue
+            severity = str(entry.get("severity") or "medium").lower().strip()
+            if severity not in VALID_SEVERITIES:
+                severity = "medium"
+            why_it_matters = str(
+                entry.get("why_it_matters")
+                or entry.get("why")
+                or "Gemini marked this update as operationally relevant."
+            ).strip()
+            highlights.append(
+                {
+                    "title": title,
+                    "severity": severity,
+                    "why_it_matters": why_it_matters,
+                }
+            )
+        return highlights
+
+    @staticmethod
+    def _classify_failure(exc: Exception) -> GeminiFailure:
+        if isinstance(exc, httpx.TimeoutException):
+            return GeminiFailure(
+                status="timeout",
+                error_kind="timeout",
+                safe_message="Gemini request timed out before a valid response was received.",
+            )
+        if isinstance(exc, httpx.HTTPStatusError):
+            response = exc.response
+            status_code = response.status_code if response is not None else None
+            provider_payload = safe_response_json(response)
+            if status_code in {401, 403}:
+                return GeminiFailure(
+                    status="auth_error",
+                    error_kind="auth_error",
+                    safe_message="Gemini authentication failed. Check the configured API key.",
+                    status_code=status_code,
+                    provider_payload=provider_payload,
+                )
+            if status_code == 429:
+                return GeminiFailure(
+                    status="rate_limited",
+                    error_kind="rate_limited",
+                    safe_message="Gemini rate limit was reached. Retry after the provider cooldown.",
+                    status_code=status_code,
+                    provider_payload=provider_payload,
+                )
+            if status_code in {500, 502, 503, 504}:
+                return GeminiFailure(
+                    status="provider_error",
+                    error_kind="provider_error",
+                    safe_message="Gemini provider returned a server-side error.",
+                    status_code=status_code,
+                    provider_payload=provider_payload,
+                )
+            return GeminiFailure(
+                status="provider_error",
+                error_kind="provider_error",
+                safe_message="Gemini request failed with a non-success HTTP status.",
+                status_code=status_code,
+                provider_payload=provider_payload,
+            )
+        if isinstance(exc, httpx.RequestError):
+            return GeminiFailure(
+                status="provider_error",
+                error_kind="request_error",
+                safe_message="Gemini request failed due to a network or transport error.",
+            )
+        if isinstance(exc, json.JSONDecodeError):
+            return GeminiFailure(
+                status="invalid_response",
+                error_kind="invalid_json",
+                safe_message="Gemini returned a response that could not be parsed as JSON.",
+            )
+        if isinstance(exc, (KeyError, IndexError, TypeError, ValueError)):
+            return GeminiFailure(
+                status="invalid_response",
+                error_kind="invalid_response",
+                safe_message="Gemini returned an unexpected response structure.",
+            )
+        return GeminiFailure(
+            status="fallback",
+            error_kind="unexpected_error",
+            safe_message="Gemini summarization failed unexpectedly; deterministic fallback used.",
         )
 
     @staticmethod

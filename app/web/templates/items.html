@@ -72,7 +72,7 @@
                     {{ item.source_id }}
                     {% endif %}
                 </td>
-                <td class="mono">{{ fmt_price(item.price_amount) }}</td>
+                <td class="mono">{{ fmt_price(item.price_amount, item.currency) }}</td>
                 <td><a class="badge badge-link badge-{{ 'healthy' if item.availability_status == 'in_stock' else 'neutral' }}" href="/admin/items?availability={{ item.availability_status }}">{{ item.availability_status|replace('_', ' ') }}</a></td>
                 <td>
                     {% if item.rating %}

@@ -5,6 +5,8 @@ from sqlalchemy import desc, func, select
 from sqlalchemy.orm import Session
 
 from app.models.item import Item, ItemSnapshot
+from app.models.source import Source
+from app.repositories.query_filters import text_search_clause
 from app.services.types import NormalizedItem
 
 
@@ -40,6 +42,47 @@ class ItemRepository:
         if limit is not None:
             statement = statement.limit(limit)
         return list(self.session.scalars(statement))
+
+    def list_for_admin(
+        self,
+        *,
+        limit: int | None = None,
+        source_id: int | None = None,
+        is_active: bool | None = None,
+        availability_status: str | None = None,
+        rating: str | None = None,
+        search_query: str | None = None,
+    ) -> Sequence[Item]:
+        statement = select(Item).outerjoin(Source, Source.id == Item.source_id)
+        if source_id is not None:
+            statement = statement.where(Item.source_id == source_id)
+        if is_active is not None:
+            statement = statement.where(Item.is_active.is_(is_active))
+        if availability_status:
+            statement = statement.where(Item.availability_status == availability_status)
+        if rating:
+            statement = statement.where(Item.rating == rating)
+        if search_query:
+            statement = statement.where(
+                text_search_clause(
+                    search_query,
+                    [
+                        Item.title,
+                        Item.source_item_key,
+                        Item.canonical_url,
+                        Item.external_id,
+                        Item.availability_status,
+                        Item.rating,
+                        Source.name,
+                    ],
+                )
+            )
+        statement = statement.order_by(
+            desc(Item.last_seen_at), desc(Item.updated_at), desc(Item.id)
+        )
+        if limit is not None:
+            statement = statement.limit(limit)
+        return list(self.session.scalars(statement).unique())
 
     def list_snapshots(self, item_id: int, limit: int = 20) -> Sequence[ItemSnapshot]:
         statement = (
