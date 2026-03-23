@@ -1,5 +1,6 @@
 from collections.abc import Generator
 from datetime import datetime, timezone
+from pathlib import Path
 
 from sqlalchemy import DateTime, create_engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
@@ -60,7 +61,7 @@ def get_db_session() -> Generator[Session, None, None]:
         session.close()
 
 
-def init_db() -> None:
+def load_model_metadata() -> None:
     from app.models import (  # noqa: F401
         ai_summary,
         event,
@@ -75,4 +76,9 @@ def init_db() -> None:
         telegram_user,
     )
 
-    Base.metadata.create_all(bind=engine)
+
+def init_db() -> None:
+    load_model_metadata()
+    if settings.resolved_database_url.startswith("sqlite:///"):
+        db_path = Path(settings.resolved_database_url.removeprefix("sqlite:///"))
+        db_path.parent.mkdir(parents=True, exist_ok=True)

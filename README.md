@@ -32,6 +32,7 @@ Parset Monitor is a portfolio-ready MVP for intelligent product and listing moni
 python3 -m venv .venv
 ./.venv/bin/pip install -e '.[dev]'
 cp .env.example .env
+./.venv/bin/python -m alembic upgrade head
 ./.venv/bin/uvicorn app.main:app --reload
 ```
 
@@ -67,6 +68,26 @@ Operational integrations are optional:
 - `GEMINI_MODEL`
 
 If Telegram is not configured, notifications are logged as `skipped`. If Gemini is not configured, the app stores a deterministic fallback summary instead of failing the run.
+
+## Database migrations
+
+Schema changes are managed through Alembic rather than runtime `create_all()`.
+
+```bash
+./.venv/bin/python -m alembic upgrade head
+```
+
+When you evolve the schema locally:
+
+```bash
+./.venv/bin/python -m alembic revision --autogenerate -m "describe change"
+./.venv/bin/python -m alembic upgrade head
+```
+
+If you already have a local `data/app.db` from the pre-Alembic version of the project, either:
+
+- delete it and run `./.venv/bin/python -m alembic upgrade head`, or
+- back it up and mark it as already migrated with `./.venv/bin/python -m alembic stamp head`
 
 ## MVP behavior
 
