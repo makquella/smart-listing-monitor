@@ -12,11 +12,21 @@ class SuppressionService:
         self.event_repository = event_repository
 
     def apply(self, event: EventDraft) -> EventDraft:
+        return self.apply_batch([event])[0]
+
+    def apply_batch(self, events: list[EventDraft]) -> list[EventDraft]:
+        if not events:
+            return events
+
         cutoff = utcnow() - timedelta(hours=self.settings.alert_cooldown_hours)
-        previous = self.event_repository.latest_unsuppressed_for_dedupe_key(
-            event.dedupe_key, cutoff
+        dedupe_keys = sorted({event.dedupe_key for event in events if event.dedupe_key})
+        latest_by_key = self.event_repository.latest_unsuppressed_for_dedupe_keys(
+            dedupe_keys, cutoff
         )
-        if previous is not None:
-            event.is_suppressed = True
-            event.suppressed_reason = "cooldown"
-        return event
+
+        for event in events:
+            if event.dedupe_key in latest_by_key:
+                event.is_suppressed = True
+                event.suppressed_reason = "cooldown"
+
+        return events

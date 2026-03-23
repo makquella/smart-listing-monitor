@@ -234,7 +234,7 @@ class MonitorRunner:
             persisted_items_by_id[item.id] = item
             if draft is not None:
                 draft.item_id = item.id
-                drafts.append(suppression_service.apply(self.priority_engine.assign(draft)))
+                drafts.append(self.priority_engine.assign(draft))
 
         if health.status == "healthy":
             for key, item in active_current_items.items():
@@ -244,7 +244,9 @@ class MonitorRunner:
                 if item.missing_run_count >= self.settings.removal_miss_threshold:
                     item_repo.mark_removed(item, now)
                     draft = self.diff_engine.removed_item_event(item)
-                    drafts.append(suppression_service.apply(self.priority_engine.assign(draft)))
+                    drafts.append(self.priority_engine.assign(draft))
+
+        drafts = suppression_service.apply_batch(drafts)
 
         event_models = [
             self._build_event_model(run=run, source=source, draft=draft, created_at=now)

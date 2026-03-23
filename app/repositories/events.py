@@ -51,3 +51,24 @@ class EventRepository:
             .limit(1)
         )
         return self.session.scalar(statement)
+
+    def latest_unsuppressed_for_dedupe_keys(
+        self, dedupe_keys: Sequence[str], since: datetime
+    ) -> dict[str, DetectedEvent]:
+        if not dedupe_keys:
+            return {}
+
+        statement = (
+            select(DetectedEvent)
+            .where(
+                DetectedEvent.dedupe_key.in_(dedupe_keys),
+                DetectedEvent.is_suppressed.is_(False),
+                DetectedEvent.created_at >= since,
+            )
+            .order_by(DetectedEvent.dedupe_key.asc(), desc(DetectedEvent.created_at))
+        )
+
+        latest_by_key: dict[str, DetectedEvent] = {}
+        for event in self.session.scalars(statement):
+            latest_by_key.setdefault(event.dedupe_key, event)
+        return latest_by_key
