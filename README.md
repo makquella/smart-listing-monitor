@@ -12,6 +12,7 @@ Parset Monitor is a portfolio-ready MVP for intelligent product and listing moni
 - Telegram integration as both a delivery channel and a bot-based control layer
 - Gemini integration for short operator summaries and top highlights
 - Run history, findings, monitor profiles, and delivery status in a server-rendered admin UI
+- Offline HTML fixture coverage for parser regressions without hitting the live source
 
 ## Stack
 
