@@ -1,8 +1,11 @@
 from dataclasses import dataclass
 
 import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import Settings
+from app.core.db import Base
 from app.core.time import utcnow
 from app.models.source import Source
 from app.repositories.runs import RunRepository
@@ -78,6 +81,14 @@ def build_runner(session_factory, adapter: FakeAdapter) -> MonitorRunner:
         notifier=TelegramNotifier(settings),
         gemini_service=GeminiService(settings),
     )
+
+
+class CountingSession(Session):
+    flush_calls = 0
+
+    def flush(self, *args, **kwargs):
+        type(self).flush_calls += 1
+        return super().flush(*args, **kwargs)
 
 
 def test_runner_creates_new_events_then_noops_on_repeat(session_factory) -> None:
@@ -170,3 +181,28 @@ def test_runner_prevents_duplicate_queued_runs_for_same_source(session_factory) 
 
     with pytest.raises(RunLockedError):
         runner.queue_run(source_id, trigger_type="manual")
+
+
+def test_runner_batches_db_flushes_for_item_and_event_writes(tmp_path) -> None:
+    engine = create_engine(
+        f"sqlite:///{tmp_path / 'counting.db'}",
+        connect_args={"check_same_thread": False},
+        future=True,
+    )
+    Base.metadata.create_all(bind=engine)
+    CountingSession.flush_calls = 0
+    factory = sessionmaker(bind=engine, expire_on_commit=False, class_=CountingSession)
+
+    source_id = make_source(factory)
+    CountingSession.flush_calls = 0
+    adapter = FakeAdapter(
+        responses=[ParseResult(items=[item(1), item(2), item(3)], pages_fetched=1)]
+    )
+    runner = build_runner(factory, adapter)
+
+    result = runner.run_source(source_id)
+
+    assert result.status == "succeeded"
+    assert result.items_parsed == 3
+    assert result.events_count == 3
+    assert CountingSession.flush_calls <= 6

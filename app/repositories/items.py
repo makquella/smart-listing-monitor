@@ -51,7 +51,12 @@ class ItemRepository:
         return list(self.session.scalars(statement))
 
     def create_from_normalized(
-        self, source_id: int, normalized: NormalizedItem, now: datetime
+        self,
+        source_id: int,
+        normalized: NormalizedItem,
+        now: datetime,
+        *,
+        flush: bool = True,
     ) -> Item:
         item = Item(
             source_id=source_id,
@@ -73,10 +78,18 @@ class ItemRepository:
             updated_at=now,
         )
         self.session.add(item)
-        self.session.flush()
+        if flush:
+            self.session.flush()
         return item
 
-    def update_from_normalized(self, item: Item, normalized: NormalizedItem, now: datetime) -> Item:
+    def update_from_normalized(
+        self,
+        item: Item,
+        normalized: NormalizedItem,
+        now: datetime,
+        *,
+        flush: bool = True,
+    ) -> Item:
         item.canonical_url = normalized.canonical_url
         item.external_id = normalized.external_id
         item.title = normalized.title
@@ -91,24 +104,29 @@ class ItemRepository:
         item.missing_run_count = 0
         item.updated_at = now
         self.session.add(item)
-        self.session.flush()
+        if flush:
+            self.session.flush()
         return item
 
-    def increment_missing(self, item: Item, now: datetime) -> Item:
+    def increment_missing(self, item: Item, now: datetime, *, flush: bool = True) -> Item:
         item.missing_run_count += 1
         item.updated_at = now
         self.session.add(item)
-        self.session.flush()
+        if flush:
+            self.session.flush()
         return item
 
-    def mark_removed(self, item: Item, now: datetime) -> Item:
+    def mark_removed(self, item: Item, now: datetime, *, flush: bool = True) -> Item:
         item.is_active = False
         item.updated_at = now
         self.session.add(item)
-        self.session.flush()
+        if flush:
+            self.session.flush()
         return item
 
-    def create_snapshot(self, item: Item, run_id: int, now: datetime) -> ItemSnapshot:
+    def create_snapshot(
+        self, item: Item, run_id: int, now: datetime, *, flush: bool = True
+    ) -> ItemSnapshot:
         snapshot = ItemSnapshot(
             item_id=item.id,
             source_id=item.source_id,
@@ -123,5 +141,28 @@ class ItemRepository:
             observed_at=now,
         )
         self.session.add(snapshot)
-        self.session.flush()
+        if flush:
+            self.session.flush()
         return snapshot
+
+    def create_snapshots(
+        self, items: Sequence[Item], run_id: int, now: datetime
+    ) -> list[ItemSnapshot]:
+        snapshots = [
+            ItemSnapshot(
+                item_id=item.id,
+                source_id=item.source_id,
+                run_id=run_id,
+                title=item.title,
+                currency=item.currency,
+                price_amount=item.price_amount,
+                availability_status=item.availability_status,
+                rating=item.rating,
+                attributes_json=item.attributes_json,
+                comparison_hash=item.comparison_hash,
+                observed_at=now,
+            )
+            for item in items
+        ]
+        self.session.add_all(snapshots)
+        return snapshots

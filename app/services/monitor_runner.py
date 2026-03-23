@@ -212,48 +212,57 @@ class MonitorRunner:
         normalized_items = [self.normalizer.normalize(source, item) for item in raw_items]
         active_current_items = {key: item for key, item in all_items.items() if item.is_active}
         seen_keys: set[str] = set()
-        drafts: list[EventDraft] = []
+        draft_items: list[tuple[EventDraft, Source | Any]] = []
+        items_for_snapshots = []
         persisted_items_by_id = {}
         now = utcnow()
 
         for normalized in normalized_items:
             existing = all_items.get(normalized.source_item_key)
             if existing is None:
-                item = item_repo.create_from_normalized(source.id, normalized, now)
-                item_repo.create_snapshot(item, run.id, now)
-                draft = self.diff_engine.new_item_event(source.id, normalized, item.id)
+                item = item_repo.create_from_normalized(source.id, normalized, now, flush=False)
+                draft = self.diff_engine.new_item_event(source.id, normalized, item_id=None)
             else:
                 was_active = existing.is_active
                 draft = self.diff_engine.compare(existing, normalized) if was_active else None
-                item = item_repo.update_from_normalized(existing, normalized, now)
-                item_repo.create_snapshot(item, run.id, now)
+                item = item_repo.update_from_normalized(existing, normalized, now, flush=False)
                 if not was_active:
-                    draft = self.diff_engine.new_item_event(source.id, normalized, item.id)
+                    draft = self.diff_engine.new_item_event(source.id, normalized, item_id=None)
 
             seen_keys.add(normalized.source_item_key)
-            persisted_items_by_id[item.id] = item
+            items_for_snapshots.append(item)
             if draft is not None:
-                draft.item_id = item.id
-                drafts.append(self.priority_engine.assign(draft))
+                draft_items.append((self.priority_engine.assign(draft), item))
 
         if health.status == "healthy":
             for key, item in active_current_items.items():
                 if key in seen_keys:
                     continue
-                item_repo.increment_missing(item, now)
+                item_repo.increment_missing(item, now, flush=False)
                 if item.missing_run_count >= self.settings.removal_miss_threshold:
-                    item_repo.mark_removed(item, now)
+                    item_repo.mark_removed(item, now, flush=False)
                     draft = self.diff_engine.removed_item_event(item)
-                    drafts.append(self.priority_engine.assign(draft))
+                    draft_items.append((self.priority_engine.assign(draft), item))
 
+        drafts = [draft for draft, _ in draft_items]
         drafts = suppression_service.apply_batch(drafts)
+        session.flush()
+
+        for item in items_for_snapshots:
+            persisted_items_by_id[item.id] = item
+
+        item_repo.create_snapshots(items_for_snapshots, run.id, now)
 
         event_models = [
-            self._build_event_model(run=run, source=source, draft=draft, created_at=now)
-            for draft in drafts
+            self._build_event_model(
+                run=run,
+                source=source,
+                draft=self._assign_item_id(draft=draft, item=item),
+                created_at=now,
+            )
+            for draft, item in draft_items
         ]
-        for event in event_models:
-            event_repo.save(event)
+        event_repo.save_all(event_models)
 
         finished_at = utcnow()
         run.finished_at = finished_at
@@ -326,12 +335,13 @@ class MonitorRunner:
                 matches=evaluated_matches,
             )
         else:
+            notification_logs: list[NotificationLog] = []
             for event in prioritized_events:
                 if event.severity != "high":
                     continue
                 item = persisted_items_by_id.get(event.item_id) if event.item_id else None
                 result = self.notifier.send_event_alert(source, run, event, item)
-                notification_repo.save(
+                notification_logs.append(
                     NotificationLog(
                         run_id=run.id,
                         event_id=event.id,
@@ -356,7 +366,7 @@ class MonitorRunner:
                     events=prioritized_events,
                     summary_text=summary.summary_text,
                 )
-                notification_repo.save(
+                notification_logs.append(
                     NotificationLog(
                         run_id=run.id,
                         event_id=None,
@@ -373,6 +383,8 @@ class MonitorRunner:
                 )
                 if result.status == "sent":
                     alert_count += 1
+
+            notification_repo.save_all(notification_logs)
 
         run.alerts_sent_count = alert_count
         session.add(run)
@@ -468,6 +480,12 @@ class MonitorRunner:
             suppressed_reason=draft.suppressed_reason,
             created_at=created_at,
         )
+
+    @staticmethod
+    def _assign_item_id(draft: EventDraft, item: Any) -> EventDraft:
+        if draft.item_id is None and item is not None:
+            draft.item_id = item.id
+        return draft
 
     @staticmethod
     def _prioritize_unsuppressed_events(events: list[DetectedEvent]) -> list[DetectedEvent]:

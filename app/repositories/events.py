@@ -16,6 +16,12 @@ class EventRepository:
         self.session.flush()
         return event
 
+    def save_all(self, events: Sequence[DetectedEvent]) -> list[DetectedEvent]:
+        if not events:
+            return []
+        self.session.add_all(events)
+        return list(events)
+
     def list_recent(self, limit: int = 25) -> Sequence[DetectedEvent]:
         statement = select(DetectedEvent).order_by(desc(DetectedEvent.created_at)).limit(limit)
         return list(self.session.scalars(statement))

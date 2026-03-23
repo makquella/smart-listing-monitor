@@ -15,6 +15,12 @@ class NotificationRepository:
         self.session.flush()
         return log
 
+    def save_all(self, logs: Sequence[NotificationLog]) -> list[NotificationLog]:
+        if not logs:
+            return []
+        self.session.add_all(logs)
+        return list(logs)
+
     def list_by_run(self, run_id: int) -> Sequence[NotificationLog]:
         statement = (
             select(NotificationLog)
