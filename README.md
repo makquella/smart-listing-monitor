@@ -20,9 +20,10 @@ Quick links:
 
 - [Case study](docs/case-study.md)
 
-Public demo bot:
+Public demo:
 
-- `@fhparserfh_bot` - available when the maintainer demo instance is online
+- Live dashboard: `http://35.239.201.114/admin/` (read-only)
+- Test bot: `@fhparserfh_bot`
 
 ## Why This Project Exists
 
