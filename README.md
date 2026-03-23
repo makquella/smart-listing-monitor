@@ -140,6 +140,39 @@ For a production-like demo start, use the dedicated single-process entry point:
 ./scripts/run_single_process.sh
 ```
 
+## Docker Deploy
+
+The repo now includes a minimal single-container deploy path that matches the current MVP runtime model.
+
+Build and run with Docker Compose:
+
+```bash
+cp .env.example .env
+docker compose up --build
+```
+
+Then open `http://127.0.0.1:8000/admin`.
+
+If your Docker installation does not provide the Compose plugin, the equivalent direct commands are:
+
+```bash
+docker build -t parset-monitor .
+docker run --rm -p 8000:8000 \
+  -v "$(pwd)/data:/app/data" \
+  -e ADMIN_READ_ONLY_MODE=true \
+  -e TELEGRAM_BOT_CONTROL_ENABLED=false \
+  parset-monitor
+```
+
+What this container setup does:
+
+- builds a slim Python 3.12 image
+- runs `alembic upgrade head` before app startup
+- starts the app through the same single-process runtime entry point
+- persists the SQLite file through the mounted `./data` volume
+
+This is intentionally a single-process deploy story for the current MVP. Do not scale the compose service horizontally or add multiple Uvicorn workers without first moving execution locking and scheduling coordination to a shared layer.
+
 ## Configuration
 
 Core monitoring behavior is controlled from `.env`:
@@ -276,6 +309,8 @@ app/
   web/           templates and static assets
 tests/           parser, diff, runner, notifier, evaluator, Gemini, and smoke tests
 docs/            README screenshots
+Dockerfile       single-container image for demo deployment
+docker-compose.yml single-process compose deployment
 ```
 
 ## Testing
