@@ -1,7 +1,7 @@
 [project]
 name = "parset-monitor"
 version = "0.1.0"
-description = "Intelligent product/listing monitoring MVP built with FastAPI"
+description = "Telegram-first monitoring platform for curated product and listing sources"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

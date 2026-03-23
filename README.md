@@ -1,5 +1,11 @@
 # Parset Monitor
 
+[![CI](https://github.com/makquella/smart-listing-monitor/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/makquella/smart-listing-monitor/actions/workflows/ci.yml)
+![Python 3.12](https://img.shields.io/badge/python-3.12-3776AB)
+![FastAPI](https://img.shields.io/badge/fastapi-admin%20ui-009688)
+![Telegram First](https://img.shields.io/badge/telegram-control%20plane-2AABEE)
+![Gemini](https://img.shields.io/badge/gemini-summary%20layer-6E44FF)
+
 Parset Monitor is a portfolio-ready MVP for intelligent product and listing monitoring. It parses supported sources, stores item state over time, detects meaningful changes, suppresses noise, matches findings against Telegram monitor profiles, sends alerts and digests, generates Gemini summaries, and exposes the whole workflow in a focused FastAPI operator console.
 
 It is intentionally scoped like a real product:
@@ -10,9 +16,25 @@ It is intentionally scoped like a real product:
 - Telegram as both delivery layer and control layer
 - admin UI for ops and observability, not a generic scraper script page
 
+Quick links:
+
+- [Case study](docs/case-study.md)
+
 Public demo bot:
 
 - `@fhparserfh_bot` - available when the maintainer demo instance is online
+
+## Why This Project Exists
+
+Most scraper demos stop at “fetch HTML and print results.” Real monitoring tools need more:
+
+- stable item identity over time
+- snapshot history instead of one-off parses
+- meaningful change detection rather than raw diffs
+- noise suppression so operators are not spammed
+- delivery and observability layers that make the output usable
+
+Parset Monitor is built to demonstrate exactly that difference.
 
 ## Product Showcase
 
@@ -92,6 +114,14 @@ This repo now demonstrates a realistic multi-source monitoring story:
 - cached category hydration reduced the warm benchmark run from roughly `147s` to `8.6s`
 
 That mix of parser logic, state, filtering, delivery, and operator UX is the main portfolio value of the project.
+
+## Key Product Decisions
+
+- Curated supported sources instead of arbitrary URL onboarding.
+- One shared source run instead of per-user parsing.
+- Deterministic change detection and suppression before AI.
+- Telegram as both delivery surface and configuration surface.
+- Single-process runtime documented honestly as an MVP deployment choice.
 
 ## What This Project Demonstrates
 
