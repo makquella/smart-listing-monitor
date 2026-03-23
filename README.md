@@ -13,6 +13,7 @@ Parset Monitor is a portfolio-ready MVP for intelligent product and listing moni
 - Gemini integration for short operator summaries and top highlights
 - Run history, findings, monitor profiles, and delivery status in a server-rendered admin UI
 - Offline HTML fixture coverage for parser regressions without hitting the live source
+- Smoke coverage for admin pages and core API endpoints via `TestClient`
 
 ## Stack
 
