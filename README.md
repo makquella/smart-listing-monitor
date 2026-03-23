@@ -6,6 +6,9 @@
 ![Telegram First](https://img.shields.io/badge/telegram-control%20plane-2AABEE)
 ![Gemini](https://img.shields.io/badge/gemini-summary%20layer-6E44FF)
 
+[![Live Dashboard](https://img.shields.io/badge/Live%20Dashboard-luhovyimvp.dev-0F766E?style=for-the-badge&logo=googlechrome&logoColor=white)](https://luhovyimvp.dev/admin/)
+[![Telegram Bot](https://img.shields.io/badge/Telegram%20Bot-@fhparserfh__bot-2AABEE?style=for-the-badge&logo=telegram&logoColor=white)](https://t.me/fhparserfh_bot)
+
 Parset Monitor is a portfolio-ready MVP for intelligent product and listing monitoring. It parses supported sources, stores item state over time, detects meaningful changes, suppresses noise, matches findings against Telegram monitor profiles, sends alerts and digests, generates Gemini summaries, and exposes the whole workflow in a focused FastAPI operator console.
 
 It is intentionally scoped like a real product:
@@ -22,8 +25,8 @@ Quick links:
 
 Public demo:
 
-- Live dashboard: `http://35.239.201.114/admin/` (read-only)
-- Test bot: `@fhparserfh_bot`
+- Live dashboard: `https://luhovyimvp.dev/admin/` (read-only)
+- Test bot: [`@fhparserfh_bot`](https://t.me/fhparserfh_bot)
 
 ## Why This Project Exists
 
