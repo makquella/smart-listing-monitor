@@ -112,7 +112,7 @@ class FakeTelegramResponse:
 def test_telegram_notifier_chunks_long_messages(monkeypatch) -> None:
     calls: list[dict] = []
 
-    def fake_post(url: str, json: dict, timeout: int):
+    def fake_post(url: str, json: dict, timeout: int, headers=None):
         calls.append(json)
         return FakeTelegramResponse(
             200,
@@ -152,11 +152,11 @@ def test_telegram_notifier_retries_on_429_and_5xx(monkeypatch) -> None:
         FakeTelegramResponse(200, payload={"ok": True, "result": {"message_id": 99}}),
     ]
 
-    def fake_post(url: str, json: dict, timeout: int):
+    def fake_post(url: str, json: dict, timeout: int, headers=None):
         return responses.pop(0)
 
     monkeypatch.setattr(httpx, "post", fake_post)
-    monkeypatch.setattr("app.services.telegram.time.sleep", sleeps.append)
+    monkeypatch.setattr("app.core.http.time.sleep", sleeps.append)
 
     notifier = TelegramNotifier(
         Settings(

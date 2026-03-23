@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     app_env: str = "development"
     log_level: str = "INFO"
     database_url: str = "sqlite:///./data/app.db"
+    admin_read_only_mode: bool = Field(default=False, alias="ADMIN_READ_ONLY_MODE")
+    http_retry_attempts: int = Field(default=3, alias="HTTP_RETRY_ATTEMPTS")
+    http_retry_base_seconds: float = Field(default=1.0, alias="HTTP_RETRY_BASE_SECONDS")
 
     request_timeout_seconds: int = 20
     parser_user_agent: str = "ParsetMonitor/1.0 (+https://example.local)"

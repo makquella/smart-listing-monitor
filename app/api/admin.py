@@ -93,12 +93,23 @@ def _search_clear_url(request: Request) -> str:
     return f"{request.url.path}?{urlencode(params)}"
 
 
+def _app_settings(request: Request):
+    return getattr(request.app.state, "settings", get_settings())
+
+
+def _ensure_admin_write_enabled(request: Request) -> None:
+    settings = _app_settings(request)
+    if settings.admin_read_only_mode:
+        raise HTTPException(status_code=403, detail="Admin is running in read-only demo mode")
+
+
 def _base_context(request: Request) -> dict:
-    settings = get_settings()
+    settings = _app_settings(request)
     return {
         "request": request,
         "now": utcnow(),
         "app_name": settings.app_name,
+        "admin_read_only_mode": settings.admin_read_only_mode,
         "integrations": {
             "telegram": bool(settings.telegram_bot_token and settings.telegram_chat_id),
             "bot_control": bool(
@@ -723,6 +734,7 @@ def deliveries(request: Request, session: Session = Depends(get_db_session)) -> 
 def run_source(
     source_id: int, request: Request, dispatcher=Depends(_get_run_dispatcher)
 ) -> RedirectResponse:
+    _ensure_admin_write_enabled(request)
     try:
         run = dispatcher.enqueue_source(source_id, trigger_type="manual")
     except RunLockedError as exc:
@@ -739,6 +751,7 @@ def update_source_settings(
     schedule_interval_minutes: int = Form(...),
     session: Session = Depends(get_db_session),
 ) -> RedirectResponse:
+    _ensure_admin_write_enabled(request)
     source_repo = SourceRepository(session)
     source = source_repo.get(source_id)
     if source is None:

@@ -87,7 +87,7 @@
                 <td>
                     <div class="row-actions">
                         <form method="post" action="/admin/sources/{{ source.id }}/run">
-                            <button type="submit" class="icon-button" title="Run source">
+                            <button type="submit" class="icon-button" title="Run source" {% if admin_read_only_mode %}disabled aria-disabled="true"{% endif %}>
                                 <span class="material-symbols-outlined">play_arrow</span>
                             </button>
                         </form>

@@ -91,6 +91,9 @@
             {% if search_query or active_filters %}
             <a class="top-status clear-link" href="{{ request.url.path }}">Clear view</a>
             {% endif %}
+            {% if admin_read_only_mode %}
+            <span class="top-status warning">Demo read-only</span>
+            {% endif %}
             <a href="/admin/monitors" class="top-status {{ 'ready' if integrations.bot_control else 'off' }}">Bot {{ 'ready' if integrations.bot_control else 'off' }}</a>
             <a href="/admin/deliveries" class="top-status {{ 'ready' if integrations.telegram else 'off' }}">Alerts {{ 'ready' if integrations.telegram else 'off' }}</a>
             <a href="/admin/" class="top-status {{ 'ready' if integrations.gemini else 'off' }}">Gemini {{ 'ready' if integrations.gemini else 'off' }}</a>
@@ -99,6 +102,20 @@
     </header>
 
     <main class="app-main">
+        {% if admin_read_only_mode %}
+        <section class="surface-card demo-banner">
+            <div class="section-head compact">
+                <div>
+                    <p class="section-kicker">Public Demo Protection</p>
+                    <h3>Read-only mode is enabled</h3>
+                </div>
+                <span class="badge badge-warning">read-only</span>
+            </div>
+            <p class="summary-text">
+                This demo allows browsing runs, findings, and configuration, but mutating admin actions like manual runs and source edits are disabled.
+            </p>
+        </section>
+        {% endif %}
         {% block content %}{% endblock %}
     </main>
 </body>

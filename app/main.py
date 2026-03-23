@@ -25,7 +25,7 @@ def build_runner() -> MonitorRunner:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    settings = get_settings()
+    settings = app.state.settings
     configure_logging(settings.log_level)
     init_db()
 
@@ -54,7 +54,9 @@ async def lifespan(app: FastAPI):
 
 
 def create_app() -> FastAPI:
+    settings = get_settings()
     app = FastAPI(title="Parset Monitor", lifespan=lifespan)
+    app.state.settings = settings
     app.mount(
         "/static",
         StaticFiles(directory=str(Path(__file__).resolve().parent / "web" / "static")),

@@ -368,6 +368,22 @@ button.button.secondary {
     box-shadow: none;
 }
 
+.button:disabled,
+button.button:disabled,
+.icon-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+}
+
+.button:disabled:hover,
+button.button:disabled:hover,
+.icon-button:disabled:hover {
+    opacity: 0.5;
+    background: inherit;
+}
+
 .headline-badges,
 .stack-inline,
 .row-trailing,
@@ -562,6 +578,12 @@ button.button.secondary {
     margin-bottom: 1.5rem;
     border: 1px solid rgba(53, 37, 205, 0.12);
     background: rgba(255, 255, 255, 0.9);
+}
+
+.demo-banner {
+    margin-bottom: 1.5rem;
+    border: 1px solid rgba(217, 119, 6, 0.22);
+    background: rgba(255, 251, 235, 0.9);
 }
 
 .surface-table {
@@ -842,6 +864,10 @@ button.button.secondary {
     transform: translateY(1px);
 }
 
+.icon-button:disabled .material-symbols-outlined {
+    opacity: 0.75;
+}
+
 .detail-layout .section-head,
 .dashboard-grid .section-head {
     padding-left: 0;
@@ -915,6 +941,19 @@ button.button.secondary {
     gap: 0.95rem;
 }
 
+.settings-fieldset {
+    display: grid;
+    gap: 0.95rem;
+    padding: 0;
+    margin: 0;
+    border: 0;
+    min-width: 0;
+}
+
+.settings-fieldset:disabled {
+    opacity: 0.7;
+}
+
 .settings-form label {
     display: grid;
     gap: 0.45rem;
@@ -964,6 +1003,13 @@ button.button.secondary {
 
 .notification-error {
     color: var(--danger);
+}
+
+.inline-notice {
+    margin: 0 0 1rem;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    line-height: 1.5;
 }
 
 @media (max-width: 1200px) {

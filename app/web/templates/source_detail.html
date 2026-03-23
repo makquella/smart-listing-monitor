@@ -21,7 +21,7 @@
     <div class="page-actions">
         <a href="/admin/sources" class="button secondary">Back to sources</a>
         <form method="post" action="/admin/sources/{{ source.id }}/run">
-            <button type="submit" class="button">Run now</button>
+            <button type="submit" class="button" {% if admin_read_only_mode %}disabled aria-disabled="true"{% endif %}>Run now</button>
         </form>
     </div>
 </section>
@@ -108,7 +108,11 @@
                     <h3>Schedule Settings</h3>
                 </div>
             </div>
+            {% if admin_read_only_mode %}
+            <p class="inline-notice">Public demo mode disables source edits and manual execution from the admin panel.</p>
+            {% endif %}
             <form method="post" action="/admin/sources/{{ source.id }}/settings" class="settings-form">
+                <fieldset class="settings-fieldset" {% if admin_read_only_mode %}disabled{% endif %}>
                 <label>
                     Interval minutes
                     <input type="number" name="schedule_interval_minutes" min="5" value="{{ source.schedule_interval_minutes }}">
@@ -122,6 +126,7 @@
                     <input type="checkbox" name="is_active" {% if source.is_active %}checked{% endif %}>
                 </label>
                 <button type="submit" class="button">Save settings</button>
+                </fieldset>
             </form>
         </article>
 

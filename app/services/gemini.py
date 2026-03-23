@@ -4,6 +4,7 @@ import logging
 import httpx
 
 from app.core.config import Settings
+from app.core.http import build_request_headers, request_with_retry
 from app.models.event import DetectedEvent
 from app.models.run import MonitoringRun
 from app.models.source import Source
@@ -71,11 +72,17 @@ class GeminiService:
             "Content-Type": "application/json",
         }
         try:
-            response = httpx.post(
-                endpoint,
-                headers=headers,
-                json=body,
+            response = request_with_retry(
+                request_callable=httpx.post,
+                logger=logger,
+                service_name="gemini",
+                method="POST",
+                url=endpoint,
                 timeout=self.settings.request_timeout_seconds,
+                retry_attempts=self.settings.http_retry_attempts,
+                retry_base_seconds=self.settings.http_retry_base_seconds,
+                headers=build_request_headers(self.settings, headers),
+                json=body,
             )
             response.raise_for_status()
             payload = response.json()

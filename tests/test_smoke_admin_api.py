@@ -24,8 +24,9 @@ class DummyScheduler:
         return None
 
 
-@pytest.fixture()
-def smoke_client(session_factory) -> Generator[tuple[TestClient, DummyDispatcher], None, None]:
+def _build_smoke_client(
+    session_factory, *, read_only: bool = False
+) -> tuple[TestClient, DummyDispatcher]:
     with session_factory() as session:
         SourceRepository(session).ensure_seed_source(Settings())
 
@@ -37,11 +38,25 @@ def smoke_client(session_factory) -> Generator[tuple[TestClient, DummyDispatcher
             yield session
 
     app.dependency_overrides[get_db_session] = override_get_db_session
+    app.state.settings = Settings(ADMIN_READ_ONLY_MODE=read_only)
     app.state.run_dispatcher = dispatcher
     app.state.scheduler = DummyScheduler()
     app.state.runner = SimpleNamespace()
+    return TestClient(app), dispatcher
 
-    client = TestClient(app)
+
+@pytest.fixture()
+def smoke_client(session_factory) -> Generator[tuple[TestClient, DummyDispatcher], None, None]:
+    client, dispatcher = _build_smoke_client(session_factory)
+    yield client, dispatcher
+    client.close()
+
+
+@pytest.fixture()
+def smoke_client_read_only(
+    session_factory,
+) -> Generator[tuple[TestClient, DummyDispatcher], None, None]:
+    client, dispatcher = _build_smoke_client(session_factory, read_only=True)
     yield client, dispatcher
     client.close()
 
@@ -74,6 +89,45 @@ def test_manual_run_endpoint_redirects_and_enqueues(smoke_client) -> None:
     assert response.status_code == 303
     assert response.headers["location"] == "/admin/runs/4242"
     assert dispatcher.calls == [(1, "manual")]
+
+
+def test_admin_dashboard_shows_read_only_banner(smoke_client_read_only) -> None:
+    client, _ = smoke_client_read_only
+
+    response = client.get("/admin/")
+
+    assert response.status_code == 200
+    assert "Read-only mode is enabled" in response.text
+    assert "Demo read-only" in response.text
+
+
+def test_manual_run_endpoint_is_blocked_in_read_only_mode(smoke_client_read_only) -> None:
+    client, dispatcher = smoke_client_read_only
+
+    response = client.post("/admin/sources/1/run", follow_redirects=False)
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Admin is running in read-only demo mode"
+    assert dispatcher.calls == []
+
+
+def test_source_settings_endpoint_is_blocked_in_read_only_mode(
+    smoke_client_read_only,
+) -> None:
+    client, _ = smoke_client_read_only
+
+    response = client.post(
+        "/admin/sources/1/settings",
+        data={
+            "schedule_interval_minutes": "15",
+            "schedule_enabled": "on",
+            "is_active": "on",
+        },
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Admin is running in read-only demo mode"
 
 
 @pytest.mark.parametrize("path", ["/api/runs", "/api/events"])

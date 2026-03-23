@@ -1,10 +1,14 @@
 import logging
-import time
 from dataclasses import dataclass
 
 import httpx
 
 from app.core.config import Settings
+from app.core.http import (
+    build_request_headers,
+    request_with_retry,
+    safe_response_json,
+)
 from app.models.event import DetectedEvent
 from app.models.item import Item
 from app.models.run import MonitoringRun
@@ -131,50 +135,36 @@ class TelegramNotifier:
             "text": message,
             "disable_web_page_preview": True,
         }
-        max_attempts = max(1, self.settings.telegram_retry_attempts)
-
-        for attempt in range(1, max_attempts + 1):
-            try:
-                response = httpx.post(
-                    endpoint, json=payload, timeout=self.settings.request_timeout_seconds
-                )
-            except Exception as exc:  # pragma: no cover - environment specific network failures
-                if attempt >= max_attempts:
-                    logger.exception("Failed to send Telegram notification after retry exhaustion")
-                    return DeliveryResult(status="failed", error_message=str(exc), chunk_count=1)
-                self._sleep_before_retry(attempt=attempt)
-                continue
-
-            if response.status_code < 400:
-                body = self._safe_json(response)
-                message_id = body.get("result", {}).get("message_id")
-                return DeliveryResult(
-                    status="sent",
-                    provider_message_id=str(message_id) if message_id else None,
-                    chunk_count=1,
-                )
-
-            if response.status_code == 429 and attempt < max_attempts:
-                retry_after = self._extract_retry_after_seconds(response) or self._compute_backoff(
-                    attempt
-                )
-                logger.warning("Telegram rate limit hit; retrying in %.2fs", retry_after)
-                time.sleep(retry_after)
-                continue
-
-            if response.status_code >= 500 and attempt < max_attempts:
-                self._sleep_before_retry(attempt=attempt)
-                continue
-
-            error_message = self._extract_error_message(response)
-            logger.error(
-                "Telegram delivery failed with status %s: %s", response.status_code, error_message
+        try:
+            response = request_with_retry(
+                request_callable=httpx.post,
+                logger=logger,
+                service_name="telegram",
+                method="POST",
+                url=endpoint,
+                timeout=self.settings.request_timeout_seconds,
+                retry_attempts=self.settings.telegram_retry_attempts,
+                retry_base_seconds=self.settings.telegram_retry_base_seconds,
+                headers=build_request_headers(self.settings),
+                json=payload,
             )
-            return DeliveryResult(status="failed", error_message=error_message, chunk_count=1)
+        except Exception as exc:  # pragma: no cover - environment specific network failures
+            return DeliveryResult(status="failed", error_message=str(exc), chunk_count=1)
 
-        return DeliveryResult(
-            status="failed", error_message="Telegram delivery failed", chunk_count=1
+        if response.status_code < 400:
+            body = safe_response_json(response)
+            message_id = body.get("result", {}).get("message_id")
+            return DeliveryResult(
+                status="sent",
+                provider_message_id=str(message_id) if message_id else None,
+                chunk_count=1,
+            )
+
+        error_message = self._extract_error_message(response)
+        logger.error(
+            "Telegram delivery failed with status %s: %s", response.status_code, error_message
         )
+        return DeliveryResult(status="failed", error_message=error_message, chunk_count=1)
 
     def _chunk_message(self, message: str) -> list[str]:
         max_length = max(1, self.settings.telegram_message_chunk_size)
@@ -218,38 +208,8 @@ class TelegramNotifier:
             remaining = remaining[split_at:].lstrip()
         return chunks
 
-    def _sleep_before_retry(self, *, attempt: int) -> None:
-        time.sleep(self._compute_backoff(attempt))
-
-    def _compute_backoff(self, attempt: int) -> float:
-        return self.settings.telegram_retry_base_seconds * (2 ** max(0, attempt - 1))
-
-    @staticmethod
-    def _safe_json(response: httpx.Response) -> dict:
-        try:
-            payload = response.json()
-        except ValueError:
-            return {}
-        return payload if isinstance(payload, dict) else {}
-
-    def _extract_retry_after_seconds(self, response: httpx.Response) -> float | None:
-        payload = self._safe_json(response)
-        retry_after = payload.get("parameters", {}).get("retry_after")
-        if retry_after is not None:
-            try:
-                return float(retry_after)
-            except (TypeError, ValueError):
-                return None
-        header_retry = response.headers.get("Retry-After")
-        if header_retry is not None:
-            try:
-                return float(header_retry)
-            except (TypeError, ValueError):
-                return None
-        return None
-
     def _extract_error_message(self, response: httpx.Response) -> str:
-        payload = self._safe_json(response)
+        payload = safe_response_json(response)
         if payload.get("description"):
             return str(payload["description"])
         if response.text:

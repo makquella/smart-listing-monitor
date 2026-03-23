@@ -1,3 +1,4 @@
+import logging
 import re
 from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import urljoin
@@ -6,9 +7,12 @@ import requests
 from bs4 import BeautifulSoup
 
 from app.core.config import Settings
+from app.core.http import build_request_headers, request_with_retry
 from app.models.source import Source
 from app.parsers.base import BaseSourceAdapter
 from app.services.types import ParsedItem, ParseResult
+
+logger = logging.getLogger(__name__)
 
 
 class BooksToScrapeAdapter(BaseSourceAdapter):
@@ -78,7 +82,7 @@ class BooksToScrapeAdapter(BaseSourceAdapter):
 
     def parse(self, source: Source) -> ParseResult:
         session = requests.Session()
-        session.headers.update({"User-Agent": self.settings.parser_user_agent})
+        session.headers.update(build_request_headers(self.settings))
 
         items: list[ParsedItem] = []
         pages_fetched = 0
@@ -86,7 +90,16 @@ class BooksToScrapeAdapter(BaseSourceAdapter):
         next_url = source.start_url
 
         while next_url:
-            response = session.get(next_url, timeout=self.settings.request_timeout_seconds)
+            response = request_with_retry(
+                request_callable=session.get,
+                logger=logger,
+                service_name=self.parser_key,
+                method="GET",
+                url=next_url,
+                timeout=self.settings.request_timeout_seconds,
+                retry_attempts=self.settings.http_retry_attempts,
+                retry_base_seconds=self.settings.http_retry_base_seconds,
+            )
             response.raise_for_status()
             response.encoding = response.encoding or "utf-8"
             pages_fetched += 1
@@ -159,10 +172,16 @@ class BooksToScrapeAdapter(BaseSourceAdapter):
         return items
 
     def _fetch_category(self, canonical_url: str) -> str | None:
-        response = requests.get(
-            canonical_url,
+        response = request_with_retry(
+            request_callable=requests.get,
+            logger=logger,
+            service_name=f"{self.parser_key}.detail",
+            method="GET",
+            url=canonical_url,
             timeout=self.settings.request_timeout_seconds,
-            headers={"User-Agent": self.settings.parser_user_agent},
+            retry_attempts=self.settings.http_retry_attempts,
+            retry_base_seconds=self.settings.http_retry_base_seconds,
+            headers=build_request_headers(self.settings),
         )
         response.raise_for_status()
         response.encoding = response.encoding or "utf-8"

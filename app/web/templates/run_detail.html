@@ -30,7 +30,7 @@
     <div class="page-actions">
         {% if source %}
         <form method="post" action="/admin/sources/{{ source.id }}/run">
-            <button type="submit" class="button">Rerun source</button>
+            <button type="submit" class="button" {% if admin_read_only_mode %}disabled aria-disabled="true"{% endif %}>Rerun source</button>
         </form>
         {% endif %}
     </div>
