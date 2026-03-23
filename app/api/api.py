@@ -7,7 +7,6 @@ from app.repositories.runs import RunRepository
 from app.schemas.event import EventRead
 from app.schemas.run import RunRead
 
-
 router = APIRouter(prefix="/api")
 
 
@@ -15,8 +14,7 @@ router = APIRouter(prefix="/api")
 def runs(session: Session = Depends(get_db_session)) -> list[RunRead]:
     run_repo = RunRepository(session)
     return [
-        RunRead.model_validate(run, from_attributes=True)
-        for run in run_repo.list_recent(limit=20)
+        RunRead.model_validate(run, from_attributes=True) for run in run_repo.list_recent(limit=20)
     ]
 
 

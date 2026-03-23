@@ -10,7 +10,7 @@ from app.services.gemini import GeminiService
 from app.services.monitor_runner import MonitorRunner, RunLockedError
 from app.services.run_lock import SourceRunLockManager
 from app.services.telegram import TelegramNotifier
-from app.services.types import ParseResult, ParsedItem
+from app.services.types import ParsedItem, ParseResult
 
 
 @dataclass
@@ -119,7 +119,9 @@ def test_runner_marks_removed_after_two_healthy_misses(session_factory) -> None:
     assert miss_two.removed_items_count == 1
 
 
-def test_runner_reuses_cached_attributes_without_reenriching_existing_items(session_factory) -> None:
+def test_runner_reuses_cached_attributes_without_reenriching_existing_items(
+    session_factory,
+) -> None:
     source_id = make_source(session_factory)
     adapter = FakeAdapter(
         responses=[

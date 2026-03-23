@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, ForeignKey, JSON, String, Text
+from sqlalchemy import JSON, Boolean, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.db import Base, UTCDateTime
@@ -10,7 +10,9 @@ class DetectedEvent(Base):
     __tablename__ = "detected_events"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    run_id: Mapped[int] = mapped_column(ForeignKey("monitoring_runs.id"), nullable=False, index=True)
+    run_id: Mapped[int] = mapped_column(
+        ForeignKey("monitoring_runs.id"), nullable=False, index=True
+    )
     source_id: Mapped[int] = mapped_column(ForeignKey("sources.id"), nullable=False, index=True)
     item_id: Mapped[int | None] = mapped_column(ForeignKey("items.id"), index=True)
     event_type: Mapped[str] = mapped_column(String(64), nullable=False)

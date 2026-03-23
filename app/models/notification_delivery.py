@@ -10,10 +10,18 @@ class NotificationDelivery(Base):
     __tablename__ = "notification_deliveries"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    monitor_profile_id: Mapped[int] = mapped_column(ForeignKey("monitor_profiles.id"), nullable=False, index=True)
-    telegram_chat_id: Mapped[int] = mapped_column(ForeignKey("telegram_chats.id"), nullable=False, index=True)
-    detected_event_id: Mapped[int | None] = mapped_column(ForeignKey("detected_events.id"), index=True)
-    monitoring_run_id: Mapped[int | None] = mapped_column(ForeignKey("monitoring_runs.id"), index=True)
+    monitor_profile_id: Mapped[int] = mapped_column(
+        ForeignKey("monitor_profiles.id"), nullable=False, index=True
+    )
+    telegram_chat_id: Mapped[int] = mapped_column(
+        ForeignKey("telegram_chats.id"), nullable=False, index=True
+    )
+    detected_event_id: Mapped[int | None] = mapped_column(
+        ForeignKey("detected_events.id"), index=True
+    )
+    monitoring_run_id: Mapped[int | None] = mapped_column(
+        ForeignKey("monitoring_runs.id"), index=True
+    )
     delivery_type: Mapped[str] = mapped_column(String(32), nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False)
     message_preview: Mapped[str | None] = mapped_column(Text)

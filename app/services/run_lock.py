@@ -1,6 +1,6 @@
+import threading
 from collections import defaultdict
 from contextlib import contextmanager
-import threading
 
 
 class SourceRunLockManager:

@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, Float, ForeignKey, JSON, String
+from sqlalchemy import JSON, Boolean, Float, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db import Base, UTCDateTime
@@ -10,8 +10,12 @@ class MonitorProfile(Base):
     __tablename__ = "monitor_profiles"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    telegram_user_id: Mapped[int] = mapped_column(ForeignKey("telegram_users.id"), nullable=False, index=True)
-    telegram_chat_id: Mapped[int] = mapped_column(ForeignKey("telegram_chats.id"), nullable=False, index=True)
+    telegram_user_id: Mapped[int] = mapped_column(
+        ForeignKey("telegram_users.id"), nullable=False, index=True
+    )
+    telegram_chat_id: Mapped[int] = mapped_column(
+        ForeignKey("telegram_chats.id"), nullable=False, index=True
+    )
     source_id: Mapped[int] = mapped_column(ForeignKey("sources.id"), nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)

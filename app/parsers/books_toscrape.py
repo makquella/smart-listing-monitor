@@ -1,6 +1,6 @@
+import re
 from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import urljoin
-import re
 
 import requests
 from bs4 import BeautifulSoup
@@ -8,7 +8,7 @@ from bs4 import BeautifulSoup
 from app.core.config import Settings
 from app.models.source import Source
 from app.parsers.base import BaseSourceAdapter
-from app.services.types import ParseResult, ParsedItem
+from app.services.types import ParsedItem, ParseResult
 
 
 class BooksToScrapeAdapter(BaseSourceAdapter):
@@ -110,14 +110,20 @@ class BooksToScrapeAdapter(BaseSourceAdapter):
                 price_amount = float(price_clean) if price_clean else None
 
                 availability_element = card.select_one(".instock.availability")
-                availability_text = availability_element.get_text(" ", strip=True) if availability_element else ""
-                availability_status = "in_stock" if "In stock" in availability_text else "out_of_stock"
+                availability_text = (
+                    availability_element.get_text(" ", strip=True) if availability_element else ""
+                )
+                availability_status = (
+                    "in_stock" if "In stock" in availability_text else "out_of_stock"
+                )
 
                 rating_element = card.select_one("p.star-rating")
                 rating = None
                 if rating_element:
                     rating_classes = rating_element.get("class", [])
-                    rating = next((value for value in rating_classes if value != "star-rating"), None)
+                    rating = next(
+                        (value for value in rating_classes if value != "star-rating"), None
+                    )
 
                 items.append(
                     ParsedItem(
@@ -143,7 +149,9 @@ class BooksToScrapeAdapter(BaseSourceAdapter):
 
         max_workers = max(1, min(self.settings.parser_detail_fetch_workers, len(pending)))
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            categories = list(executor.map(self._fetch_category, [item.canonical_url for item in pending]))
+            categories = list(
+                executor.map(self._fetch_category, [item.canonical_url for item in pending])
+            )
 
         for item, category in zip(pending, categories, strict=False):
             if category:
@@ -159,5 +167,7 @@ class BooksToScrapeAdapter(BaseSourceAdapter):
         response.raise_for_status()
         response.encoding = response.encoding or "utf-8"
         soup = BeautifulSoup(response.text, "html.parser")
-        breadcrumbs = [crumb.get_text(" ", strip=True) for crumb in soup.select("ul.breadcrumb li a")]
+        breadcrumbs = [
+            crumb.get_text(" ", strip=True) for crumb in soup.select("ul.breadcrumb li a")
+        ]
         return breadcrumbs[-1] if breadcrumbs else None

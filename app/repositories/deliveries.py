@@ -16,10 +16,16 @@ class NotificationDeliveryRepository:
         return delivery
 
     def list_recent(self, limit: int = 50) -> Sequence[NotificationDelivery]:
-        statement = select(NotificationDelivery).order_by(desc(NotificationDelivery.created_at)).limit(limit)
+        statement = (
+            select(NotificationDelivery)
+            .order_by(desc(NotificationDelivery.created_at))
+            .limit(limit)
+        )
         return list(self.session.scalars(statement))
 
-    def list_by_monitor(self, monitor_profile_id: int, limit: int = 50) -> Sequence[NotificationDelivery]:
+    def list_by_monitor(
+        self, monitor_profile_id: int, limit: int = 50
+    ) -> Sequence[NotificationDelivery]:
         statement = (
             select(NotificationDelivery)
             .where(NotificationDelivery.monitor_profile_id == monitor_profile_id)
@@ -28,7 +34,9 @@ class NotificationDeliveryRepository:
         )
         return list(self.session.scalars(statement))
 
-    def list_by_chat(self, telegram_chat_id: int, limit: int = 50) -> Sequence[NotificationDelivery]:
+    def list_by_chat(
+        self, telegram_chat_id: int, limit: int = 50
+    ) -> Sequence[NotificationDelivery]:
         statement = (
             select(NotificationDelivery)
             .where(NotificationDelivery.telegram_chat_id == telegram_chat_id)

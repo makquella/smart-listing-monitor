@@ -84,14 +84,22 @@ def test_telegram_digest_format_includes_summary() -> None:
         created_at=None,
     )
 
-    text = notifier.format_run_digest(source=source, run=run, events=[event], summary_text="AI summary text")
+    text = notifier.format_run_digest(
+        source=source, run=run, events=[event], summary_text="AI summary text"
+    )
 
     assert "AI summary:" in text
     assert "New item detected" in text
 
 
 class FakeTelegramResponse:
-    def __init__(self, status_code: int, payload: dict | None = None, headers: dict | None = None, text: str = ""):
+    def __init__(
+        self,
+        status_code: int,
+        payload: dict | None = None,
+        headers: dict | None = None,
+        text: str = "",
+    ):
         self.status_code = status_code
         self._payload = payload or {}
         self.headers = headers or {}
@@ -134,7 +142,11 @@ def test_telegram_notifier_retries_on_429_and_5xx(monkeypatch) -> None:
     responses = [
         FakeTelegramResponse(
             429,
-            payload={"ok": False, "description": "Too Many Requests", "parameters": {"retry_after": 3}},
+            payload={
+                "ok": False,
+                "description": "Too Many Requests",
+                "parameters": {"retry_after": 3},
+            },
         ),
         FakeTelegramResponse(502, text="bad gateway"),
         FakeTelegramResponse(200, payload={"ok": True, "result": {"message_id": 99}}),

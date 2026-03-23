@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+
 from sqlalchemy import desc, select
 from sqlalchemy.orm import Session
 

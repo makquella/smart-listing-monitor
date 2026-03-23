@@ -1,5 +1,5 @@
-from datetime import datetime
 import logging
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy.orm import Session, sessionmaker
@@ -30,7 +30,6 @@ from app.services.suppression import SuppressionService
 from app.services.telegram import TelegramNotifier
 from app.services.telegram_notifier import MonitorTelegramNotifier
 from app.services.types import EventDraft
-
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +72,9 @@ class MonitorRunner:
                 raise ValueError(f"Source {source_id} not found")
             active_run = run_repo.get_in_progress_by_source(source_id)
             if active_run is not None:
-                raise RunLockedError(f"Source {source_id} already has an in-progress run #{active_run.id}")
+                raise RunLockedError(
+                    f"Source {source_id} already has an in-progress run #{active_run.id}"
+                )
             queued_at = utcnow()
             run = run_repo.create_run(
                 source_id=source.id,
@@ -134,7 +135,9 @@ class MonitorRunner:
             if not acquired:
                 with self.session_factory() as session:
                     run = RunRepository(session).get(run_id)
-                    source = SourceRepository(session).get(run.source_id) if run is not None else None
+                    source = (
+                        SourceRepository(session).get(run.source_id) if run is not None else None
+                    )
                     if run is None or source is None:
                         raise RunLockedError(f"Run {run_id} is no longer available")
                     if run.status == "queued":
@@ -173,7 +176,9 @@ class MonitorRunner:
                         exc=exc,
                     )
 
-    def _execute_run(self, *, session: Session, source: Source, run: MonitoringRun) -> MonitoringRun:
+    def _execute_run(
+        self, *, session: Session, source: Source, run: MonitoringRun
+    ) -> MonitoringRun:
         run_repo = RunRepository(session)
         item_repo = ItemRepository(session)
         event_repo = EventRepository(session)
@@ -185,7 +190,9 @@ class MonitorRunner:
         parse_result = adapter.parse(source)
         item_count = len(parse_result.items)
 
-        recent_counts = run_repo.recent_healthy_item_counts(source.id, self.settings.health_baseline_run_window)
+        recent_counts = run_repo.recent_healthy_item_counts(
+            source.id, self.settings.health_baseline_run_window
+        )
         health = self.health_service.evaluate(
             item_count=item_count,
             warnings=parse_result.warnings,
@@ -197,7 +204,9 @@ class MonitorRunner:
 
         all_items = item_repo.get_by_source(source.id)
         raw_items = list(parse_result.items)
-        items_to_enrich = self._hydrate_cached_attributes(source=source, items=raw_items, existing_items=all_items)
+        items_to_enrich = self._hydrate_cached_attributes(
+            source=source, items=raw_items, existing_items=all_items
+        )
         if items_to_enrich:
             adapter.enrich_items(source, items_to_enrich)
         normalized_items = [self.normalizer.normalize(source, item) for item in raw_items]
@@ -237,7 +246,10 @@ class MonitorRunner:
                     draft = self.diff_engine.removed_item_event(item)
                     drafts.append(suppression_service.apply(self.priority_engine.assign(draft)))
 
-        event_models = [self._build_event_model(run=run, source=source, draft=draft, created_at=now) for draft in drafts]
+        event_models = [
+            self._build_event_model(run=run, source=source, draft=draft, created_at=now)
+            for draft in drafts
+        ]
         for event in event_models:
             event_repo.save(event)
 
@@ -246,11 +258,19 @@ class MonitorRunner:
         run.duration_ms = int((finished_at - run.started_at).total_seconds() * 1000)
         run.pages_fetched = parse_result.pages_fetched
         run.items_parsed = item_count
-        run.new_items_count = len([event for event in event_models if event.event_type == "new_item"])
-        run.changed_items_count = len(
-            [event for event in event_models if event.event_type not in {"new_item", "removed_item"}]
+        run.new_items_count = len(
+            [event for event in event_models if event.event_type == "new_item"]
         )
-        run.removed_items_count = len([event for event in event_models if event.event_type == "removed_item"])
+        run.changed_items_count = len(
+            [
+                event
+                for event in event_models
+                if event.event_type not in {"new_item", "removed_item"}
+            ]
+        )
+        run.removed_items_count = len(
+            [event for event in event_models if event.event_type == "removed_item"]
+        )
         run.events_count = len(event_models)
         run.parse_completeness_ratio = round(health.parse_completeness_ratio, 2)
         run.health_evaluation = health.status
@@ -358,7 +378,9 @@ class MonitorRunner:
         session.refresh(run)
         return run
 
-    def _mark_run_started(self, *, session: Session, source: Source, run: MonitoringRun) -> datetime:
+    def _mark_run_started(
+        self, *, session: Session, source: Source, run: MonitoringRun
+    ) -> datetime:
         started_at = utcnow()
         run.status = "running"
         run.started_at = started_at
@@ -403,7 +425,9 @@ class MonitorRunner:
             self._log_failure_transition(session, source, run, str(exc))
         return run
 
-    def _log_failure_transition(self, session: Session, source: Source, run: MonitoringRun, error_message: str) -> None:
+    def _log_failure_transition(
+        self, session: Session, source: Source, run: MonitoringRun, error_message: str
+    ) -> None:
         notification_repo = NotificationRepository(session)
         result = self.notifier.send_failure_alert(source, error_message)
         notification_repo.save(
@@ -424,7 +448,9 @@ class MonitorRunner:
         session.commit()
 
     @staticmethod
-    def _build_event_model(*, run: MonitoringRun, source: Source, draft: EventDraft, created_at: datetime) -> DetectedEvent:
+    def _build_event_model(
+        *, run: MonitoringRun, source: Source, draft: EventDraft, created_at: datetime
+    ) -> DetectedEvent:
         return DetectedEvent(
             run_id=run.id,
             source_id=source.id,
@@ -445,7 +471,9 @@ class MonitorRunner:
     def _prioritize_unsuppressed_events(events: list[DetectedEvent]) -> list[DetectedEvent]:
         severity_order = {"high": 0, "medium": 1, "low": 2}
         unsuppressed = [event for event in events if not event.is_suppressed]
-        return sorted(unsuppressed, key=lambda event: (severity_order.get(event.severity, 9), event.id or 0))
+        return sorted(
+            unsuppressed, key=lambda event: (severity_order.get(event.severity, 9), event.id or 0)
+        )
 
     def _hydrate_cached_attributes(
         self,
@@ -458,7 +486,11 @@ class MonitorRunner:
         for item in items:
             source_item_key = self.normalizer.build_source_item_key(source, item.canonical_url)
             existing = existing_items.get(source_item_key)
-            existing_attributes = existing.attributes_json if existing is not None and existing.attributes_json else {}
+            existing_attributes = (
+                existing.attributes_json
+                if existing is not None and existing.attributes_json
+                else {}
+            )
             for key, value in existing_attributes.items():
                 item.attributes.setdefault(key, value)
             if not item.attributes.get("category"):

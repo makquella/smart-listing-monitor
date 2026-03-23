@@ -6,14 +6,17 @@ from app.bot.context import get_bot_services
 from app.bot.keyboards import main_menu_keyboard, run_source_keyboard
 from app.repositories.sources import SourceRepository
 
-
 router = Router()
 
 
 def _source_choices() -> list[tuple[int, str]]:
     services = get_bot_services()
     with services.session_factory() as session:
-        return [(source.id, source.name) for source in SourceRepository(session).list_sources() if source.is_active]
+        return [
+            (source.id, source.name)
+            for source in SourceRepository(session).list_sources()
+            if source.is_active
+        ]
 
 
 @router.message(CommandStart())

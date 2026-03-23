@@ -21,7 +21,11 @@ class EventRepository:
         return list(self.session.scalars(statement))
 
     def list_by_run(self, run_id: int) -> Sequence[DetectedEvent]:
-        statement = select(DetectedEvent).where(DetectedEvent.run_id == run_id).order_by(desc(DetectedEvent.created_at))
+        statement = (
+            select(DetectedEvent)
+            .where(DetectedEvent.run_id == run_id)
+            .order_by(desc(DetectedEvent.created_at))
+        )
         return list(self.session.scalars(statement))
 
     def list_recent_by_item(self, item_id: int, limit: int = 20) -> Sequence[DetectedEvent]:
@@ -33,7 +37,9 @@ class EventRepository:
         )
         return list(self.session.scalars(statement))
 
-    def latest_unsuppressed_for_dedupe_key(self, dedupe_key: str, since: datetime) -> DetectedEvent | None:
+    def latest_unsuppressed_for_dedupe_key(
+        self, dedupe_key: str, since: datetime
+    ) -> DetectedEvent | None:
         statement = (
             select(DetectedEvent)
             .where(

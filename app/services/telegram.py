@@ -1,6 +1,6 @@
-from dataclasses import dataclass
 import logging
 import time
+from dataclasses import dataclass
 
 import httpx
 
@@ -9,7 +9,6 @@ from app.models.event import DetectedEvent
 from app.models.item import Item
 from app.models.run import MonitoringRun
 from app.models.source import Source
-
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +28,9 @@ class TelegramNotifier:
     def send_message(self, chat_id: str | int, message: str) -> DeliveryResult:
         return self._send_message(chat_id=chat_id, message=message)
 
-    def send_event_alert(self, source: Source, run: MonitoringRun, event: DetectedEvent, item: Item | None) -> DeliveryResult:
+    def send_event_alert(
+        self, source: Source, run: MonitoringRun, event: DetectedEvent, item: Item | None
+    ) -> DeliveryResult:
         message = self.format_event_alert(source, run, event, item)
         destination = self.settings.telegram_chat_id or ""
         return self._send_message(chat_id=destination, message=message)
@@ -42,7 +43,9 @@ class TelegramNotifier:
         events: list[DetectedEvent],
         summary_text: str,
     ) -> DeliveryResult:
-        message = self.format_run_digest(source=source, run=run, events=events, summary_text=summary_text)
+        message = self.format_run_digest(
+            source=source, run=run, events=events, summary_text=summary_text
+        )
         destination = self.settings.telegram_chat_id or ""
         return self._send_message(chat_id=destination, message=message)
 
@@ -104,7 +107,9 @@ class TelegramNotifier:
 
     def _send_message(self, *, chat_id: str | int, message: str) -> DeliveryResult:
         if not self.settings.telegram_bot_token or not chat_id:
-            return DeliveryResult(status="skipped", error_message="Telegram is not configured", chunk_count=0)
+            return DeliveryResult(
+                status="skipped", error_message="Telegram is not configured", chunk_count=0
+            )
 
         chunks = self._chunk_message(message)
         first_message_id: str | None = None
@@ -115,7 +120,9 @@ class TelegramNotifier:
                 return result
             if first_message_id is None:
                 first_message_id = result.provider_message_id
-        return DeliveryResult(status="sent", provider_message_id=first_message_id, chunk_count=len(chunks))
+        return DeliveryResult(
+            status="sent", provider_message_id=first_message_id, chunk_count=len(chunks)
+        )
 
     def _send_chunk_with_retry(self, *, chat_id: str | int, message: str) -> DeliveryResult:
         endpoint = f"https://api.telegram.org/bot{self.settings.telegram_bot_token}/sendMessage"
@@ -128,7 +135,9 @@ class TelegramNotifier:
 
         for attempt in range(1, max_attempts + 1):
             try:
-                response = httpx.post(endpoint, json=payload, timeout=self.settings.request_timeout_seconds)
+                response = httpx.post(
+                    endpoint, json=payload, timeout=self.settings.request_timeout_seconds
+                )
             except Exception as exc:  # pragma: no cover - environment specific network failures
                 if attempt >= max_attempts:
                     logger.exception("Failed to send Telegram notification after retry exhaustion")
@@ -139,10 +148,16 @@ class TelegramNotifier:
             if response.status_code < 400:
                 body = self._safe_json(response)
                 message_id = body.get("result", {}).get("message_id")
-                return DeliveryResult(status="sent", provider_message_id=str(message_id) if message_id else None, chunk_count=1)
+                return DeliveryResult(
+                    status="sent",
+                    provider_message_id=str(message_id) if message_id else None,
+                    chunk_count=1,
+                )
 
             if response.status_code == 429 and attempt < max_attempts:
-                retry_after = self._extract_retry_after_seconds(response) or self._compute_backoff(attempt)
+                retry_after = self._extract_retry_after_seconds(response) or self._compute_backoff(
+                    attempt
+                )
                 logger.warning("Telegram rate limit hit; retrying in %.2fs", retry_after)
                 time.sleep(retry_after)
                 continue
@@ -152,10 +167,14 @@ class TelegramNotifier:
                 continue
 
             error_message = self._extract_error_message(response)
-            logger.error("Telegram delivery failed with status %s: %s", response.status_code, error_message)
+            logger.error(
+                "Telegram delivery failed with status %s: %s", response.status_code, error_message
+            )
             return DeliveryResult(status="failed", error_message=error_message, chunk_count=1)
 
-        return DeliveryResult(status="failed", error_message="Telegram delivery failed", chunk_count=1)
+        return DeliveryResult(
+            status="failed", error_message="Telegram delivery failed", chunk_count=1
+        )
 
     def _chunk_message(self, message: str) -> list[str]:
         max_length = max(1, self.settings.telegram_message_chunk_size)

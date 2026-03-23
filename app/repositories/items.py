@@ -26,11 +26,17 @@ class ItemRepository:
         return {item.source_item_key: item for item in items}
 
     def count_active_by_source(self, source_id: int) -> int:
-        statement = select(func.count()).select_from(Item).where(Item.source_id == source_id, Item.is_active.is_(True))
+        statement = (
+            select(func.count())
+            .select_from(Item)
+            .where(Item.source_id == source_id, Item.is_active.is_(True))
+        )
         return int(self.session.scalar(statement) or 0)
 
     def list_recent(self, limit: int | None = None) -> Sequence[Item]:
-        statement = select(Item).order_by(desc(Item.last_seen_at), desc(Item.updated_at), desc(Item.id))
+        statement = select(Item).order_by(
+            desc(Item.last_seen_at), desc(Item.updated_at), desc(Item.id)
+        )
         if limit is not None:
             statement = statement.limit(limit)
         return list(self.session.scalars(statement))
@@ -44,7 +50,9 @@ class ItemRepository:
         )
         return list(self.session.scalars(statement))
 
-    def create_from_normalized(self, source_id: int, normalized: NormalizedItem, now: datetime) -> Item:
+    def create_from_normalized(
+        self, source_id: int, normalized: NormalizedItem, now: datetime
+    ) -> Item:
         item = Item(
             source_id=source_id,
             source_item_key=normalized.source_item_key,

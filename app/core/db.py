@@ -1,5 +1,5 @@
-from datetime import datetime, timezone
 from collections.abc import Generator
+from datetime import datetime, timezone
 
 from sqlalchemy import DateTime, create_engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
@@ -44,7 +44,9 @@ class UTCDateTime(TypeDecorator):
 settings = get_settings()
 engine = create_engine(
     settings.resolved_database_url,
-    connect_args={"check_same_thread": False} if settings.resolved_database_url.startswith("sqlite") else {},
+    connect_args={"check_same_thread": False}
+    if settings.resolved_database_url.startswith("sqlite")
+    else {},
     future=True,
 )
 SessionLocal = sessionmaker(bind=engine, expire_on_commit=False, class_=Session)

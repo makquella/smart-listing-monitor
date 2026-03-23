@@ -1,9 +1,8 @@
-from concurrent.futures import Future, ThreadPoolExecutor
 import logging
+from concurrent.futures import Future, ThreadPoolExecutor
 
 from app.models.run import MonitoringRun
 from app.services.monitor_runner import MonitorRunner
-
 
 logger = logging.getLogger(__name__)
 
@@ -11,7 +10,9 @@ logger = logging.getLogger(__name__)
 class RunDispatcher:
     def __init__(self, runner: MonitorRunner, max_workers: int = 2) -> None:
         self.runner = runner
-        self.executor = ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="parset-runner")
+        self.executor = ThreadPoolExecutor(
+            max_workers=max_workers, thread_name_prefix="parset-runner"
+        )
         self._futures: set[Future] = set()
 
     def enqueue_source(self, source_id: int, trigger_type: str = "manual") -> MonitoringRun:

@@ -4,7 +4,6 @@ from pathlib import Path
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-
 BASE_DIR = Path(__file__).resolve().parents[2]
 
 
@@ -32,7 +31,9 @@ class Settings(BaseSettings):
     alert_cooldown_hours: int = Field(default=12, alias="ALERT_COOLDOWN_HOURS")
     min_absolute_price_delta: float = Field(default=1.00, alias="MIN_ABSOLUTE_PRICE_DELTA")
     min_percent_price_delta: float = Field(default=2.0, alias="MIN_PERCENT_PRICE_DELTA")
-    degraded_parse_ratio_threshold: float = Field(default=0.70, alias="DEGRADED_PARSE_RATIO_THRESHOLD")
+    degraded_parse_ratio_threshold: float = Field(
+        default=0.70, alias="DEGRADED_PARSE_RATIO_THRESHOLD"
+    )
 
     books_source_name: str = "Books to Scrape"
     books_source_slug: str = "books-to-scrape"
@@ -42,7 +43,9 @@ class Settings(BaseSettings):
     telegram_bot_token: str | None = None
     telegram_chat_id: str | None = None
     telegram_bot_control_enabled: bool = Field(default=False, alias="TELEGRAM_BOT_CONTROL_ENABLED")
-    telegram_bot_polling_timeout_seconds: int = Field(default=30, alias="TELEGRAM_BOT_POLLING_TIMEOUT_SECONDS")
+    telegram_bot_polling_timeout_seconds: int = Field(
+        default=30, alias="TELEGRAM_BOT_POLLING_TIMEOUT_SECONDS"
+    )
     telegram_message_chunk_size: int = Field(default=3500, alias="TELEGRAM_MESSAGE_CHUNK_SIZE")
     telegram_retry_attempts: int = Field(default=4, alias="TELEGRAM_RETRY_ATTEMPTS")
     telegram_retry_base_seconds: float = Field(default=1.5, alias="TELEGRAM_RETRY_BASE_SECONDS")

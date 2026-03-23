@@ -50,7 +50,7 @@ class DiffEngine:
             direction = "down" if deltas["price_delta"] < 0 else "up"
             summary = (
                 f'Price changed for "{normalized.title}" '
-                f'from {self._fmt_price(existing.price_amount)} to {self._fmt_price(normalized.price_amount)} '
+                f"from {self._fmt_price(existing.price_amount)} to {self._fmt_price(normalized.price_amount)} "
                 f"({direction} {abs(deltas['price_delta_percent']):.1f}%)"
             )
             return EventDraft(
@@ -87,7 +87,9 @@ class DiffEngine:
             summary_text=summary,
         )
 
-    def new_item_event(self, source_id: int, normalized: NormalizedItem, item_id: int | None = None) -> EventDraft:
+    def new_item_event(
+        self, source_id: int, normalized: NormalizedItem, item_id: int | None = None
+    ) -> EventDraft:
         return EventDraft(
             source_item_key=normalized.source_item_key,
             item_id=item_id,
@@ -128,7 +130,10 @@ class DiffEngine:
             return False
         delta = abs(current - previous)
         percent = abs((delta / previous) * 100) if previous else 0.0
-        return delta >= self.settings.min_absolute_price_delta or percent >= self.settings.min_percent_price_delta
+        return (
+            delta >= self.settings.min_absolute_price_delta
+            or percent >= self.settings.min_percent_price_delta
+        )
 
     def _price_delta(self, previous: float | None, current: float | None) -> dict:
         if previous is None or current is None:

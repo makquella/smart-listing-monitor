@@ -70,20 +70,28 @@ class MonitorEvaluator:
                 return None
             reasons.append(f"category={category}")
 
-        if profile.min_price is not None and (price_amount is None or price_amount < profile.min_price):
+        if profile.min_price is not None and (
+            price_amount is None or price_amount < profile.min_price
+        ):
             return None
-        if profile.max_price is not None and (price_amount is None or price_amount > profile.max_price):
+        if profile.max_price is not None and (
+            price_amount is None or price_amount > profile.max_price
+        ):
             return None
         if profile.min_price is not None or profile.max_price is not None:
             reasons.append(f"price={price_amount:.2f}" if price_amount is not None else "price=n/a")
 
-        include_matches = [keyword for keyword in profile.include_keywords_json if keyword in searchable_text]
+        include_matches = [
+            keyword for keyword in profile.include_keywords_json if keyword in searchable_text
+        ]
         if profile.include_keywords_json and not include_matches:
             return None
         if include_matches:
             reasons.append(f"include={', '.join(include_matches)}")
 
-        exclude_matches = [keyword for keyword in profile.exclude_keywords_json if keyword in searchable_text]
+        exclude_matches = [
+            keyword for keyword in profile.exclude_keywords_json if keyword in searchable_text
+        ]
         if exclude_matches:
             return None
 
@@ -130,9 +138,16 @@ class MonitorEvaluator:
         score = self.PRIORITY_RANK.get(event.severity, 1)
         if include_matches:
             score += 1
-        if profile.max_price is not None and price_amount is not None and price_amount <= profile.max_price:
+        if (
+            profile.max_price is not None
+            and price_amount is not None
+            and price_amount <= profile.max_price
+        ):
             score += 1
-        if event.event_type == "availability_change" and (event.new_value_json or {}).get("availability_status") == "in_stock":
+        if (
+            event.event_type == "availability_change"
+            and (event.new_value_json or {}).get("availability_status") == "in_stock"
+        ):
             score += 1
         if event.event_type == "new_item" and include_matches:
             score += 1

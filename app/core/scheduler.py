@@ -6,7 +6,6 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.repositories.sources import SourceRepository
 from app.services.monitor_runner import MonitorRunner, RunLockedError
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -49,6 +48,9 @@ class SchedulerService:
         try:
             self.runner.run_source(source_id, trigger_type="scheduled")
         except RunLockedError:
-            logger.info("Skipped scheduled run for source %s because a run is already in progress", source_id)
+            logger.info(
+                "Skipped scheduled run for source %s because a run is already in progress",
+                source_id,
+            )
         except Exception:
             logger.exception("Scheduled run failed for source %s", source_id)

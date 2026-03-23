@@ -8,7 +8,6 @@ from app.repositories.runs import RunRepository
 from app.repositories.sources import SourceRepository
 from app.repositories.telegram_registry import TelegramChatRepository
 
-
 router = Router()
 
 
@@ -22,7 +21,9 @@ async def bot_status(callback: CallbackQuery) -> None:
     profiles = services.monitor_profiles.list_for_chat(callback.message.chat.id)
     with services.session_factory() as session:
         chat = TelegramChatRepository(session).get_by_telegram_id(callback.message.chat.id)
-        deliveries = NotificationDeliveryRepository(session).list_by_chat(chat.id, limit=5) if chat else []
+        deliveries = (
+            NotificationDeliveryRepository(session).list_by_chat(chat.id, limit=5) if chat else []
+        )
         recent_run = RunRepository(session).list_recent(limit=1)
         recent_run = recent_run[0] if recent_run else None
         sources = SourceRepository(session).list_sources()

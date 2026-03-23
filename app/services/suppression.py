@@ -13,7 +13,9 @@ class SuppressionService:
 
     def apply(self, event: EventDraft) -> EventDraft:
         cutoff = utcnow() - timedelta(hours=self.settings.alert_cooldown_hours)
-        previous = self.event_repository.latest_unsuppressed_for_dedupe_key(event.dedupe_key, cutoff)
+        previous = self.event_repository.latest_unsuppressed_for_dedupe_key(
+            event.dedupe_key, cutoff
+        )
         if previous is not None:
             event.is_suppressed = True
             event.suppressed_reason = "cooldown"

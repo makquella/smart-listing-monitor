@@ -131,10 +131,24 @@ tests/           parser, diff, runner, notifier, evaluator, and Gemini tests
 
 ```bash
 ./.venv/bin/python -m ruff check .
+./.venv/bin/python -m ruff format --check .
 ./.venv/bin/python -m pytest
 ```
 
 GitHub Actions runs the same lint + test pipeline on every push and pull request.
+
+## Pre-commit
+
+```bash
+./.venv/bin/python -m pre_commit install
+./.venv/bin/python -m pre_commit run --all-files
+```
+
+The project keeps the local quality stack intentionally small:
+
+- `ruff check` for linting and import sorting
+- `ruff format` for consistent formatting
+- `pre-commit` to run both before each commit
 
 ## Notes
 

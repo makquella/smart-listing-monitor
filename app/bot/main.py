@@ -40,7 +40,12 @@ class TelegramBotController:
             )
 
     def start(self) -> None:
-        if not self.enabled or self.bot is None or self.dispatcher is None or self._task is not None:
+        if (
+            not self.enabled
+            or self.bot is None
+            or self.dispatcher is None
+            or self._task is not None
+        ):
             return
         self._task = asyncio.create_task(
             self.dispatcher.start_polling(

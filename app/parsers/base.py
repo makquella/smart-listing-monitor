@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 
 from app.models.source import Source
-from app.services.types import ParseResult, ParsedItem
+from app.services.types import ParsedItem, ParseResult
 
 
 class BaseSourceAdapter(ABC):

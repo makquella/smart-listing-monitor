@@ -3,8 +3,8 @@ from app.models.event import DetectedEvent
 from app.models.item import Item, ItemSnapshot
 from app.models.monitor_match import MonitorMatch
 from app.models.monitor_profile import MonitorProfile
-from app.models.notification_delivery import NotificationDelivery
 from app.models.notification import NotificationLog
+from app.models.notification_delivery import NotificationDelivery
 from app.models.run import MonitoringRun
 from app.models.source import Source
 from app.models.telegram_chat import TelegramChat

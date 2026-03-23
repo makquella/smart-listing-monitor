@@ -12,9 +12,9 @@ from app.core.time import format_utc, format_utc_short, utcnow
 from app.models.event import DetectedEvent
 from app.models.telegram_chat import TelegramChat
 from app.models.telegram_user import TelegramUser
+from app.repositories.deliveries import NotificationDeliveryRepository
 from app.repositories.events import EventRepository
 from app.repositories.items import ItemRepository
-from app.repositories.deliveries import NotificationDeliveryRepository
 from app.repositories.monitor_matches import MonitorMatchRepository
 from app.repositories.monitor_profiles import MonitorProfileRepository
 from app.repositories.notifications import NotificationRepository
@@ -24,9 +24,10 @@ from app.repositories.summaries import AISummaryRepository
 from app.repositories.telegram_registry import TelegramChatRepository, TelegramUserRepository
 from app.services.monitor_runner import MonitorRunner, RunLockedError
 
-
 router = APIRouter()
-templates = Jinja2Templates(directory=str(Path(__file__).resolve().parents[1] / "web" / "templates"))
+templates = Jinja2Templates(
+    directory=str(Path(__file__).resolve().parents[1] / "web" / "templates")
+)
 
 
 def _search_query(request: Request) -> str:
@@ -100,7 +101,9 @@ def _base_context(request: Request) -> dict:
         "app_name": settings.app_name,
         "integrations": {
             "telegram": bool(settings.telegram_bot_token and settings.telegram_chat_id),
-            "bot_control": bool(settings.telegram_bot_control_enabled and settings.telegram_bot_token),
+            "bot_control": bool(
+                settings.telegram_bot_control_enabled and settings.telegram_bot_token
+            ),
             "gemini": bool(settings.gemini_api_key),
         },
         "fmt_price": lambda price: "n/a" if price is None else f"GBP {price:.2f}",
@@ -110,7 +113,9 @@ def _base_context(request: Request) -> dict:
         "fmt_ratio": lambda value: "n/a" if value is None else f"{value:.2f}",
         "search_query": _search_query(request),
         "active_filters": _active_filters(request),
-        "persistent_query_params": [(key, value) for key, value in request.query_params.multi_items() if key != "q"],
+        "persistent_query_params": [
+            (key, value) for key, value in request.query_params.multi_items() if key != "q"
+        ],
         "search_clear_url": _search_clear_url(request),
     }
 
@@ -170,20 +175,30 @@ def overview(request: Request, session: Session = Depends(get_db_session)) -> HT
                 event.event_type,
                 event.severity,
                 event.summary_text,
-                sources_by_id.get(event.source_id).name if event.source_id in sources_by_id else None,
+                sources_by_id.get(event.source_id).name
+                if event.source_id in sources_by_id
+                else None,
             )
         ]
-        if latest_summary and not _matches_query(query, latest_summary.summary_text, latest_summary.highlights_json):
+        if latest_summary and not _matches_query(
+            query, latest_summary.summary_text, latest_summary.highlights_json
+        ):
             latest_summary = None
 
-    active_item_count = sum(ItemRepository(session).count_active_by_source(source.id) for source in sources)
+    active_item_count = sum(
+        ItemRepository(session).count_active_by_source(source.id) for source in sources
+    )
     health_counts = {
         "healthy": len([source for source in sources if source.health_status == "healthy"]),
         "degraded": len([source for source in sources if source.health_status == "degraded"]),
         "failing": len([source for source in sources if source.health_status == "failing"]),
     }
     success_rate = (
-        round((len([run for run in recent_runs if run.status == "succeeded"]) / len(recent_runs)) * 100, 1)
+        round(
+            (len([run for run in recent_runs if run.status == "succeeded"]) / len(recent_runs))
+            * 100,
+            1,
+        )
         if recent_runs
         else 0.0
     )
@@ -232,7 +247,11 @@ def sources_list(request: Request, session: Session = Depends(get_db_session)) -
     elif schedule_filter == "disabled":
         sources = [source for source in sources if not source.schedule_enabled]
     if attention_filter:
-        sources = [source for source in sources if source.health_status == "failing" or not source.is_active]
+        sources = [
+            source
+            for source in sources
+            if source.health_status == "failing" or not source.is_active
+        ]
 
     if query:
         sources = [
@@ -249,7 +268,9 @@ def sources_list(request: Request, session: Session = Depends(get_db_session)) -
             )
         ]
     item_repo = ItemRepository(session)
-    active_item_counts = {source.id: item_repo.count_active_by_source(source.id) for source in sources}
+    active_item_counts = {
+        source.id: item_repo.count_active_by_source(source.id) for source in sources
+    }
     health_counts = {
         "healthy": len([source for source in sources if source.health_status == "healthy"]),
         "degraded": len([source for source in sources if source.health_status == "degraded"]),
@@ -269,7 +290,9 @@ def sources_list(request: Request, session: Session = Depends(get_db_session)) -
 
 
 @router.get("/sources/{source_id}", response_class=HTMLResponse)
-def source_detail(source_id: int, request: Request, session: Session = Depends(get_db_session)) -> HTMLResponse:
+def source_detail(
+    source_id: int, request: Request, session: Session = Depends(get_db_session)
+) -> HTMLResponse:
     source_repo = SourceRepository(session)
     run_repo = RunRepository(session)
     event_repo = EventRepository(session)
@@ -282,7 +305,9 @@ def source_detail(source_id: int, request: Request, session: Session = Depends(g
 
     query = _search_query(request)
     runs = run_repo.list_recent_by_source(source_id, limit=10)
-    recent_events = [event for event in event_repo.list_recent(limit=50) if event.source_id == source_id][:10]
+    recent_events = [
+        event for event in event_repo.list_recent(limit=50) if event.source_id == source_id
+    ][:10]
     run_status_filter = _query_value(request, "run_status")
     severity_filter = _query_value(request, "severity")
     event_type_filter = _query_value(request, "event_type")
@@ -295,7 +320,9 @@ def source_detail(source_id: int, request: Request, session: Session = Depends(g
     if event_type_filter:
         recent_events = [event for event in recent_events if event.event_type == event_type_filter]
     if suppressed_filter is not None:
-        recent_events = [event for event in recent_events if event.is_suppressed is suppressed_filter]
+        recent_events = [
+            event for event in recent_events if event.is_suppressed is suppressed_filter
+        ]
 
     if query:
         runs = [
@@ -315,7 +342,9 @@ def source_detail(source_id: int, request: Request, session: Session = Depends(g
             if _matches_query(query, event.event_type, event.severity, event.summary_text)
         ]
         latest_summary = summary_repo.latest_for_source(source_id)
-        if latest_summary and not _matches_query(query, latest_summary.summary_text, latest_summary.highlights_json):
+        if latest_summary and not _matches_query(
+            query, latest_summary.summary_text, latest_summary.highlights_json
+        ):
             latest_summary = None
     else:
         latest_summary = summary_repo.latest_for_source(source_id)
@@ -399,7 +428,9 @@ def items_list(request: Request, session: Session = Depends(get_db_session)) -> 
 
 
 @router.get("/items/{item_id}", response_class=HTMLResponse)
-def item_detail(item_id: int, request: Request, session: Session = Depends(get_db_session)) -> HTMLResponse:
+def item_detail(
+    item_id: int, request: Request, session: Session = Depends(get_db_session)
+) -> HTMLResponse:
     item_repo = ItemRepository(session)
     source_repo = SourceRepository(session)
     event_repo = EventRepository(session)
@@ -487,7 +518,9 @@ def monitors_list(request: Request, session: Session = Depends(get_db_session)) 
     if priority_filter:
         profiles = [profile for profile in profiles if profile.priority_mode == priority_filter]
     if instant_filter is not None:
-        profiles = [profile for profile in profiles if profile.instant_alerts_enabled is instant_filter]
+        profiles = [
+            profile for profile in profiles if profile.instant_alerts_enabled is instant_filter
+        ]
     if digest_filter is not None:
         profiles = [profile for profile in profiles if profile.digest_enabled is digest_filter]
     if query:
@@ -500,8 +533,12 @@ def monitors_list(request: Request, session: Session = Depends(get_db_session)) 
                 profile.category,
                 profile.priority_mode,
                 sources.get(profile.source_id).name if profile.source_id in sources else None,
-                chats.get(profile.telegram_chat_id).title if profile.telegram_chat_id in chats else None,
-                users.get(profile.telegram_user_id).username if profile.telegram_user_id in users else None,
+                chats.get(profile.telegram_chat_id).title
+                if profile.telegram_chat_id in chats
+                else None,
+                users.get(profile.telegram_user_id).username
+                if profile.telegram_user_id in users
+                else None,
             )
         ]
 
@@ -526,7 +563,9 @@ def monitors_list(request: Request, session: Session = Depends(get_db_session)) 
 
 
 @router.get("/monitors/{monitor_id}", response_class=HTMLResponse)
-def monitor_detail(monitor_id: int, request: Request, session: Session = Depends(get_db_session)) -> HTMLResponse:
+def monitor_detail(
+    monitor_id: int, request: Request, session: Session = Depends(get_db_session)
+) -> HTMLResponse:
     monitor_repo = MonitorProfileRepository(session)
     match_repo = MonitorMatchRepository(session)
     delivery_repo = NotificationDeliveryRepository(session)
@@ -547,9 +586,13 @@ def monitor_detail(monitor_id: int, request: Request, session: Session = Depends
     if priority_filter:
         matches = [match for match in matches if match.priority == priority_filter]
     if delivery_status_filter:
-        deliveries = [delivery for delivery in deliveries if delivery.status == delivery_status_filter]
+        deliveries = [
+            delivery for delivery in deliveries if delivery.status == delivery_status_filter
+        ]
     if delivery_type_filter:
-        deliveries = [delivery for delivery in deliveries if delivery.delivery_type == delivery_type_filter]
+        deliveries = [
+            delivery for delivery in deliveries if delivery.delivery_type == delivery_type_filter
+        ]
 
     events = {
         match.detected_event_id: session.get(DetectedEvent, match.detected_event_id)
@@ -569,7 +612,9 @@ def monitor_detail(monitor_id: int, request: Request, session: Session = Depends
                 query,
                 match.match_reason,
                 match.priority,
-                events.get(match.detected_event_id).summary_text if match.detected_event_id in events and events.get(match.detected_event_id) else None,
+                events.get(match.detected_event_id).summary_text
+                if match.detected_event_id in events and events.get(match.detected_event_id)
+                else None,
             )
         ]
         deliveries = [
@@ -625,11 +670,17 @@ def deliveries(request: Request, session: Session = Depends(get_db_session)) -> 
     if status_filter:
         deliveries = [delivery for delivery in deliveries if delivery.status == status_filter]
     if delivery_type_filter:
-        deliveries = [delivery for delivery in deliveries if delivery.delivery_type == delivery_type_filter]
+        deliveries = [
+            delivery for delivery in deliveries if delivery.delivery_type == delivery_type_filter
+        ]
     if monitor_filter is not None:
-        deliveries = [delivery for delivery in deliveries if delivery.monitor_profile_id == monitor_filter]
+        deliveries = [
+            delivery for delivery in deliveries if delivery.monitor_profile_id == monitor_filter
+        ]
     if chat_filter is not None:
-        deliveries = [delivery for delivery in deliveries if delivery.telegram_chat_id == chat_filter]
+        deliveries = [
+            delivery for delivery in deliveries if delivery.telegram_chat_id == chat_filter
+        ]
     if query:
         deliveries = [
             delivery
@@ -640,8 +691,12 @@ def deliveries(request: Request, session: Session = Depends(get_db_session)) -> 
                 delivery.status,
                 delivery.message_preview,
                 delivery.error_text,
-                profiles.get(delivery.monitor_profile_id).name if delivery.monitor_profile_id in profiles else None,
-                chats.get(delivery.telegram_chat_id).title if delivery.telegram_chat_id in chats else None,
+                profiles.get(delivery.monitor_profile_id).name
+                if delivery.monitor_profile_id in profiles
+                else None,
+                chats.get(delivery.telegram_chat_id).title
+                if delivery.telegram_chat_id in chats
+                else None,
             )
         ]
 
@@ -665,7 +720,9 @@ def deliveries(request: Request, session: Session = Depends(get_db_session)) -> 
 
 
 @router.post("/sources/{source_id}/run")
-def run_source(source_id: int, request: Request, dispatcher = Depends(_get_run_dispatcher)) -> RedirectResponse:
+def run_source(
+    source_id: int, request: Request, dispatcher=Depends(_get_run_dispatcher)
+) -> RedirectResponse:
     try:
         run = dispatcher.enqueue_source(source_id, trigger_type="manual")
     except RunLockedError as exc:
@@ -747,7 +804,9 @@ def runs_list(request: Request, session: Session = Depends(get_db_session)) -> H
 
 
 @router.get("/runs/{run_id}", response_class=HTMLResponse)
-def run_detail(run_id: int, request: Request, session: Session = Depends(get_db_session)) -> HTMLResponse:
+def run_detail(
+    run_id: int, request: Request, session: Session = Depends(get_db_session)
+) -> HTMLResponse:
     run_repo = RunRepository(session)
     source_repo = SourceRepository(session)
     event_repo = EventRepository(session)
@@ -790,16 +849,34 @@ def run_detail(run_id: int, request: Request, session: Session = Depends(get_db_
     if suppressed_filter is not None:
         events = [event for event in events if event.is_suppressed is suppressed_filter]
     if notification_status_filter:
-        notifications = [notification for notification in notifications if notification.status == notification_status_filter]
+        notifications = [
+            notification
+            for notification in notifications
+            if notification.status == notification_status_filter
+        ]
     if notification_type_filter:
-        notifications = [notification for notification in notifications if notification.notification_type == notification_type_filter]
+        notifications = [
+            notification
+            for notification in notifications
+            if notification.notification_type == notification_type_filter
+        ]
     if delivery_status_filter:
-        monitor_deliveries = [delivery for delivery in monitor_deliveries if delivery.status == delivery_status_filter]
+        monitor_deliveries = [
+            delivery for delivery in monitor_deliveries if delivery.status == delivery_status_filter
+        ]
     if delivery_type_filter:
-        monitor_deliveries = [delivery for delivery in monitor_deliveries if delivery.delivery_type == delivery_type_filter]
+        monitor_deliveries = [
+            delivery
+            for delivery in monitor_deliveries
+            if delivery.delivery_type == delivery_type_filter
+        ]
 
     if query:
-        events = [event for event in events if _matches_query(query, event.event_type, event.severity, event.summary_text)]
+        events = [
+            event
+            for event in events
+            if _matches_query(query, event.event_type, event.severity, event.summary_text)
+        ]
         notifications = [
             notification
             for notification in notifications
@@ -822,21 +899,27 @@ def run_detail(run_id: int, request: Request, session: Session = Depends(get_db_
                 delivery.message_preview,
                 delivery.error_text,
                 monitor_profiles.get(delivery.monitor_profile_id).name
-                if delivery.monitor_profile_id in monitor_profiles and monitor_profiles.get(delivery.monitor_profile_id)
+                if delivery.monitor_profile_id in monitor_profiles
+                and monitor_profiles.get(delivery.monitor_profile_id)
                 else None,
                 delivery_chats.get(delivery.telegram_chat_id).title
-                if delivery.telegram_chat_id in delivery_chats and delivery_chats.get(delivery.telegram_chat_id)
+                if delivery.telegram_chat_id in delivery_chats
+                and delivery_chats.get(delivery.telegram_chat_id)
                 else None,
             )
         ]
-        if summary and not _matches_query(query, summary.summary_text, summary.highlights_json, summary.status):
+        if summary and not _matches_query(
+            query, summary.summary_text, summary.highlights_json, summary.status
+        ):
             summary = None
 
     event_stats = {
         "total": len(events),
         "suppressed": len([event for event in events if event.is_suppressed]),
         "high": len([event for event in events if event.severity == "high"]),
-        "alerts": len([notification for notification in notifications if notification.status == "sent"]),
+        "alerts": len(
+            [notification for notification in notifications if notification.status == "sent"]
+        ),
         "monitor_deliveries": len(monitor_deliveries),
     }
     source = source_repo.get(run.source_id)
@@ -863,7 +946,11 @@ def findings(request: Request, session: Session = Depends(get_db_session)) -> HT
     event_repo = EventRepository(session)
     source_repo = SourceRepository(session)
     run_filter = _query_int(request, "run_id")
-    events = event_repo.list_by_run(run_filter) if run_filter is not None else event_repo.list_recent(limit=40)
+    events = (
+        event_repo.list_by_run(run_filter)
+        if run_filter is not None
+        else event_repo.list_recent(limit=40)
+    )
     sources = {source.id: source for source in source_repo.list_sources()}
     query = _search_query(request)
     severity_filter = _query_value(request, "severity")

@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, Float, ForeignKey, Integer, JSON, String, UniqueConstraint
+from sqlalchemy import JSON, Boolean, Float, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db import Base, UTCDateTime
@@ -39,7 +39,9 @@ class ItemSnapshot(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     item_id: Mapped[int] = mapped_column(ForeignKey("items.id"), nullable=False, index=True)
     source_id: Mapped[int] = mapped_column(ForeignKey("sources.id"), nullable=False, index=True)
-    run_id: Mapped[int] = mapped_column(ForeignKey("monitoring_runs.id"), nullable=False, index=True)
+    run_id: Mapped[int] = mapped_column(
+        ForeignKey("monitoring_runs.id"), nullable=False, index=True
+    )
     title: Mapped[str] = mapped_column(String(500), nullable=False)
     currency: Mapped[str] = mapped_column(String(16), default="GBP", nullable=False)
     price_amount: Mapped[float | None] = mapped_column(Float)

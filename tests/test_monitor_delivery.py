@@ -165,7 +165,9 @@ def test_monitor_notifier_persists_matches_and_sends_instant_and_digest(session_
     sent_count = notifier.deliver(
         source=source,
         run=run,
-        summary=type("Summary", (), {"summary_text": "Travel monitor found one high-priority match."})(),
+        summary=type(
+            "Summary", (), {"summary_text": "Travel monitor found one high-priority match."}
+        )(),
         matches=[match],
     )
 

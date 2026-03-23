@@ -9,7 +9,6 @@ from app.models.run import MonitoringRun
 from app.models.source import Source
 from app.services.types import SummaryResult
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -19,7 +18,9 @@ class GeminiService:
     def __init__(self, settings: Settings):
         self.settings = settings
 
-    def summarize_run(self, source: Source, run: MonitoringRun, events: list[DetectedEvent]) -> SummaryResult:
+    def summarize_run(
+        self, source: Source, run: MonitoringRun, events: list[DetectedEvent]
+    ) -> SummaryResult:
         top_events = events[:3]
         if not top_events:
             return SummaryResult(
@@ -65,7 +66,10 @@ class GeminiService:
             "https://generativelanguage.googleapis.com/v1beta/models/"
             f"{self.settings.gemini_model}:generateContent"
         )
-        headers = {"x-goog-api-key": self.settings.gemini_api_key, "Content-Type": "application/json"}
+        headers = {
+            "x-goog-api-key": self.settings.gemini_api_key,
+            "Content-Type": "application/json",
+        }
         try:
             response = httpx.post(
                 endpoint,
@@ -98,7 +102,9 @@ class GeminiService:
             }
             for event in events[:3]
         ]
-        summary_text = f"{len(events)} notable update(s) detected, led by {events[0].summary_text.lower()}."
+        summary_text = (
+            f"{len(events)} notable update(s) detected, led by {events[0].summary_text.lower()}."
+        )
         return SummaryResult(
             summary_text=summary_text,
             highlights=highlights,

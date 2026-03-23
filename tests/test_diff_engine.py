@@ -56,7 +56,9 @@ def test_diff_engine_creates_high_priority_availability_event() -> None:
 
 def test_diff_engine_ignores_small_price_delta() -> None:
     settings = Settings(MIN_ABSOLUTE_PRICE_DELTA=5.0, MIN_PERCENT_PRICE_DELTA=10.0)
-    existing = build_item(price_amount=20.0, availability_status="in_stock", comparison_hash="before")
+    existing = build_item(
+        price_amount=20.0, availability_status="in_stock", comparison_hash="before"
+    )
     normalized = NormalizationService().normalize(
         type("Source", (), {"base_url": "https://books.toscrape.com/"})(),
         ParsedItem(

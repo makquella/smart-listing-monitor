@@ -20,7 +20,6 @@ from app.repositories.sources import SourceRepository
 from app.services.monitor_runner import RunLockedError
 from app.services.types import MonitorProfileCreate
 
-
 router = Router()
 
 
@@ -111,9 +110,7 @@ async def choose_source(callback: CallbackQuery, state: FSMContext) -> None:
     await state.update_data(source_id=source_id, source_name=source_name)
     if callback.message:
         await callback.message.edit_text(
-            f"Source selected: {source_name}\n"
-            f"Send a category name or skip.\n"
-            f"Examples: {preview}",
+            f"Source selected: {source_name}\nSend a category name or skip.\nExamples: {preview}",
             reply_markup=skip_keyboard("create:skip:category"),
         )
     await state.set_state(CreateMonitorStates.category)
@@ -159,7 +156,9 @@ async def capture_min_price(message: Message, state: FSMContext) -> None:
     try:
         value = _parse_optional_price(message.text or "")
     except ValueError:
-        await message.answer("Minimum price should be a number like `25` or `19.99`, or type `skip`.")
+        await message.answer(
+            "Minimum price should be a number like `25` or `19.99`, or type `skip`."
+        )
         return
     await state.update_data(min_price=value, **_ensure_message_identity(message))
     await message.answer(
@@ -186,7 +185,9 @@ async def capture_max_price(message: Message, state: FSMContext) -> None:
     try:
         value = _parse_optional_price(message.text or "")
     except ValueError:
-        await message.answer("Maximum price should be a number like `30` or `49.50`, or type `skip`.")
+        await message.answer(
+            "Maximum price should be a number like `30` or `49.50`, or type `skip`."
+        )
         return
     await state.update_data(max_price=value, **_ensure_message_identity(message))
     await message.answer(
@@ -196,7 +197,9 @@ async def capture_max_price(message: Message, state: FSMContext) -> None:
     await state.set_state(CreateMonitorStates.include_keywords)
 
 
-@router.callback_query(CreateMonitorStates.include_keywords, F.data == "create:skip:include_keywords")
+@router.callback_query(
+    CreateMonitorStates.include_keywords, F.data == "create:skip:include_keywords"
+)
 async def skip_include_keywords(callback: CallbackQuery, state: FSMContext) -> None:
     await callback.answer()
     await state.update_data(include_keywords=[])
@@ -220,7 +223,9 @@ async def capture_include_keywords(message: Message, state: FSMContext) -> None:
     await state.set_state(CreateMonitorStates.exclude_keywords)
 
 
-@router.callback_query(CreateMonitorStates.exclude_keywords, F.data == "create:skip:exclude_keywords")
+@router.callback_query(
+    CreateMonitorStates.exclude_keywords, F.data == "create:skip:exclude_keywords"
+)
 async def skip_exclude_keywords(callback: CallbackQuery, state: FSMContext) -> None:
     await callback.answer()
     await state.update_data(exclude_keywords=[])
@@ -294,7 +299,9 @@ async def skip_name(callback: CallbackQuery, state: FSMContext) -> None:
 @router.message(CreateMonitorStates.name)
 async def capture_name(message: Message, state: FSMContext) -> None:
     name = (message.text or "").strip()
-    await state.update_data(name=None if name.lower() == "skip" else name, **_ensure_message_identity(message))
+    await state.update_data(
+        name=None if name.lower() == "skip" else name, **_ensure_message_identity(message)
+    )
     await _finalize_monitor(message, state)
 
 
@@ -365,7 +372,9 @@ async def my_monitors(callback: CallbackQuery) -> None:
         return
     lines = ["Monitors in this chat:"]
     for profile in profiles:
-        lines.append(f"- #{profile.id} {profile.name} ({'active' if profile.is_active else 'paused'})")
+        lines.append(
+            f"- #{profile.id} {profile.name} ({'active' if profile.is_active else 'paused'})"
+        )
     await callback.message.edit_text(
         "\n".join(lines),
         reply_markup=notifications_menu_keyboard([profile.id for profile in profiles]),
@@ -419,7 +428,11 @@ async def toggle_monitor(callback: CallbackQuery) -> None:
     if profile is None:
         await callback.message.edit_text("Monitor not found.", reply_markup=status_back_keyboard())
         return
-    updated = services.monitor_profiles.pause(monitor_id) if profile.is_active else services.monitor_profiles.resume(monitor_id)
+    updated = (
+        services.monitor_profiles.pause(monitor_id)
+        if profile.is_active
+        else services.monitor_profiles.resume(monitor_id)
+    )
     await callback.message.edit_text(
         _build_monitor_summary(updated),
         reply_markup=monitor_action_keyboard(updated.id, is_active=updated.is_active),
@@ -491,7 +504,9 @@ async def run_monitor_source(callback: CallbackQuery) -> None:
         await callback.message.edit_text("Monitor not found.", reply_markup=status_back_keyboard())
         return
     try:
-        run = await asyncio.to_thread(services.runner.run_source, profile.source_id, "telegram_manual")
+        run = await asyncio.to_thread(
+            services.runner.run_source, profile.source_id, "telegram_manual"
+        )
         await callback.message.edit_text(
             f"Run requested for monitor {profile.name}.\nRun #{run.id} finished with status {run.status}.",
             reply_markup=monitor_action_keyboard(profile.id, is_active=profile.is_active),

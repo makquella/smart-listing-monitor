@@ -13,8 +13,8 @@ from app.core.db import init_db
 from app.core.logging import configure_logging
 from app.core.scheduler import SchedulerService
 from app.repositories.sources import SourceRepository
-from app.services.run_dispatcher import RunDispatcher
 from app.services.monitor_runner import MonitorRunner, build_runner_dependencies
+from app.services.run_dispatcher import RunDispatcher
 
 
 def build_runner() -> MonitorRunner:
@@ -38,7 +38,9 @@ async def lifespan(app: FastAPI):
     dispatcher = RunDispatcher(runner=runner)
     scheduler = SchedulerService(session_factory=runner.session_factory, runner=runner)
     scheduler.start()
-    bot_controller = TelegramBotController(settings=settings, session_factory=runner.session_factory, runner=runner)
+    bot_controller = TelegramBotController(
+        settings=settings, session_factory=runner.session_factory, runner=runner
+    )
     bot_controller.start()
 
     app.state.runner = runner
@@ -53,7 +55,11 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     app = FastAPI(title="Parset Monitor", lifespan=lifespan)
-    app.mount("/static", StaticFiles(directory=str(Path(__file__).resolve().parent / "web" / "static")), name="static")
+    app.mount(
+        "/static",
+        StaticFiles(directory=str(Path(__file__).resolve().parent / "web" / "static")),
+        name="static",
+    )
 
     @app.get("/", include_in_schema=False)
     def root():

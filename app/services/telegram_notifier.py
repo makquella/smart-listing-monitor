@@ -99,7 +99,9 @@ class MonitorTelegramNotifier:
                                 alert_count += 1
                         else:
                             telegram_message_id = None
-                            error_text = match.event.suppressed_reason or "Suppressed by platform rules"
+                            error_text = (
+                                match.event.suppressed_reason or "Suppressed by platform rules"
+                            )
 
                         delivery_repo.save(
                             NotificationDelivery(
@@ -118,7 +120,9 @@ class MonitorTelegramNotifier:
                         )
 
                 if profile.digest_enabled:
-                    digest_matches = [match for match in allowed_matches if not match.event.is_suppressed]
+                    digest_matches = [
+                        match for match in allowed_matches if not match.event.is_suppressed
+                    ]
                     if not digest_matches:
                         continue
                     digest_preview = self.digest_builder.build_run_digest(

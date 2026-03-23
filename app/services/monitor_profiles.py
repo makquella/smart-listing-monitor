@@ -29,7 +29,11 @@ class MonitorProfileService:
     def create(self, payload: MonitorProfileCreate) -> MonitorProfile:
         if payload.priority_mode not in self.VALID_PRIORITY_MODES:
             raise ValueError(f"Unsupported priority mode: {payload.priority_mode}")
-        if payload.min_price is not None and payload.max_price is not None and payload.min_price > payload.max_price:
+        if (
+            payload.min_price is not None
+            and payload.max_price is not None
+            and payload.min_price > payload.max_price
+        ):
             raise ValueError("Minimum price cannot be greater than maximum price")
 
         identity = self.registry.ensure_identity(

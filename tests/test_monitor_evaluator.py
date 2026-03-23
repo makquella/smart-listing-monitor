@@ -157,7 +157,9 @@ def test_monitor_evaluator_rejects_excluded_keywords_and_high_only_mode() -> Non
         max_price=None,
     )
     item = make_item(title="Damaged Travel Notes")
-    event = make_event(summary_text='Attribute change: "Damaged Travel Notes" rating updated', severity="low")
+    event = make_event(
+        summary_text='Attribute change: "Damaged Travel Notes" rating updated', severity="low"
+    )
 
     matches = evaluator.evaluate(
         source=source,

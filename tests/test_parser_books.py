@@ -44,7 +44,9 @@ def test_books_adapter_parses_listing_cards(monkeypatch) -> None:
       </body>
     </html>
     """
-    monkeypatch.setattr("app.parsers.books_toscrape.requests.Session", lambda: FakeSession(html, detail_html))
+    monkeypatch.setattr(
+        "app.parsers.books_toscrape.requests.Session", lambda: FakeSession(html, detail_html)
+    )
     monkeypatch.setattr("app.parsers.books_toscrape.requests.get", fake_detail_get(detail_html))
 
     adapter = BooksToScrapeAdapter(Settings())
