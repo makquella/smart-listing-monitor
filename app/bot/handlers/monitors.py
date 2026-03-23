@@ -16,9 +16,7 @@ from app.bot.keyboards import (
     yes_no_keyboard,
 )
 from app.bot.states import CreateMonitorStates
-from app.core.time import utcnow
 from app.repositories.sources import SourceRepository
-from app.services.monitor_profiles import MonitorProfileService
 from app.services.monitor_runner import RunLockedError
 from app.services.types import MonitorProfileCreate
 

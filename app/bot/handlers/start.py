@@ -1,7 +1,6 @@
 from aiogram import Router
 from aiogram.filters import CommandStart
 from aiogram.types import CallbackQuery, Message
-from sqlalchemy.orm import Session
 
 from app.bot.context import get_bot_services
 from app.bot.keyboards import main_menu_keyboard, run_source_keyboard

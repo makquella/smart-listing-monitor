@@ -127,6 +127,15 @@ tests/           parser, diff, runner, notifier, evaluator, and Gemini tests
 ./.venv/bin/python -m pytest
 ```
 
+## Quality checks
+
+```bash
+./.venv/bin/python -m ruff check .
+./.venv/bin/python -m pytest
+```
+
+GitHub Actions runs the same lint + test pipeline on every push and pull request.
+
 ## Notes
 
 - The first source adapter targets `Books to Scrape`, which is safe and stable for portfolio demos.

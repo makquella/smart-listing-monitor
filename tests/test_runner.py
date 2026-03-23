@@ -4,9 +4,8 @@ import pytest
 
 from app.core.config import Settings
 from app.core.time import utcnow
-from app.repositories.runs import RunRepository
 from app.models.source import Source
-from app.repositories.sources import SourceRepository
+from app.repositories.runs import RunRepository
 from app.services.gemini import GeminiService
 from app.services.monitor_runner import MonitorRunner, RunLockedError
 from app.services.run_lock import SourceRunLockManager

@@ -531,8 +531,6 @@ def monitor_detail(monitor_id: int, request: Request, session: Session = Depends
     match_repo = MonitorMatchRepository(session)
     delivery_repo = NotificationDeliveryRepository(session)
     source_repo = SourceRepository(session)
-    user_repo = TelegramUserRepository(session)
-    chat_repo = TelegramChatRepository(session)
     run_repo = RunRepository(session)
 
     profile = monitor_repo.get(monitor_id)
@@ -756,7 +754,6 @@ def run_detail(run_id: int, request: Request, session: Session = Depends(get_db_
     notification_repo = NotificationRepository(session)
     delivery_repo = NotificationDeliveryRepository(session)
     profile_repo = MonitorProfileRepository(session)
-    chat_repo = TelegramChatRepository(session)
     summary_repo = AISummaryRepository(session)
 
     run = run_repo.get(run_id)
